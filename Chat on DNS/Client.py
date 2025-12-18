@@ -8,6 +8,7 @@ import base64
 DNS_SERVER = ["127.0.0.1"]
 DNS_PORT = 53
 FILE_NAME = "org.txt"
+MSG_TYPE = "A"
 
 
 def b64_dns_encode(data: bytes) -> str:
@@ -46,11 +47,10 @@ def send_message():
 
     for domain in messages:
         try:
-            answers = resolver.resolve(domain, "TXT")
+            answers = resolver.resolve(domain, MSG_TYPE)
 
             for rdata in answers:
-                response = b"".join(rdata.strings).decode()
-                print(f"Response: {response}")
+                print(f"Response: {rdata}")
 
         except Exception as e:
             print(f"Error: {e}")

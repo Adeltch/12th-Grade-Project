@@ -2,20 +2,28 @@ __author__ = "Adel Tchernitsky"
 
 
 from dnslib.server import DNSServer, BaseResolver
-from dnslib import RR, QTYPE, TXT
+from dnslib import RR, QTYPE, A
 import base64
 import threading
+import random
 
 
 ADDRESS = "0.0.0.0"
 PORT = 53
 TTL = 60
 FINAL_MESSAGE = "end"
+MSG_TYPE = "A"
 
 
 collected_data = []
 data_lock = threading.Lock()
 write = False
+
+
+def get_random_response():
+    if MSG_TYPE == "A":
+        parts = [str(random.randint(1, 255)) for i in range(4)]
+        return ".".join(parts)
 
 
 class SimpleResolver(BaseResolver):
@@ -43,13 +51,15 @@ class SimpleResolver(BaseResolver):
 
         # Prepare response
         reply = request.reply()
-        reply.add_answer(RR(query_name, QTYPE.TXT, rdata=TXT(f"ACK -> {domain}"), ttl=TTL))
+        reply.add_answer(RR(query_name, QTYPE.A, rdata=A(get_random_response()), ttl=TTL))
 
         return reply
 
 
 def back_into_file():
     global write
+    global collected_data
+    
     if not write:
         return
 
@@ -59,6 +69,8 @@ def back_into_file():
     with open("new.txt", "wb") as f:
         f.write(byte_data)
     write = False
+    collected_data = []
+
 
 
 def main():
