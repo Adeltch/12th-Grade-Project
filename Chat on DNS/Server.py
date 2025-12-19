@@ -22,7 +22,7 @@ write = False
 
 def get_random_response():
     if MSG_TYPE == "A":
-        parts = [str(random.randint(1, 255)) for i in range(4)]
+        parts = [str(random.randint(0, 256)) for i in range(4)]
         return ".".join(parts)
 
 
