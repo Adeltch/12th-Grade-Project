@@ -48,10 +48,13 @@ def handle_client_message(request):
         except Exception as e:
             decoded = f"<decode error: {e}>"
         print(f"Client sent: {decoded}")
+        print("msg id: ", request.header.id)
 
         # Store safely
         with data_lock:
-            collected_data[request.header.id] = decoded.encode()
+            if request.header.id not in collected_data:
+                collected_data[request.header.id] = b""
+            collected_data[request.header.id] += decoded.encode()
 
 
 def create_response(request):
@@ -77,6 +80,7 @@ class SimpleResolver(BaseResolver):
 
 
 def back_to_file():
+    print("in collected data")
     print(collected_data)
 
 
