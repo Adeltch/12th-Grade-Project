@@ -29,8 +29,12 @@ def split_bytes(data, chunk_size):
 
 def get_file(file_name):
     """Read file as bytes"""
-    with open(file_name, "rb") as f:
-        return f.read()
+    try:
+        with open(file_name, "rb") as f:
+            return f.read()
+
+    except FileNotFoundError:
+        return "Error: The file does not exist"
 
 
 def get_msg_id(file_content):
@@ -106,6 +110,13 @@ def ask_which_file(server_ip):
 def send_file(file_name, server_ip):
     """Send file content to server using DNS queries"""
     file_content = get_file(file_name)
+    if b"Error" in file_content:
+        print("Requested file does not exist!")
+        return
+
+    file_length = len(file_content)
+    send_message(str(file_length), server_ip, "A")
+
     msg_id = get_msg_id(file_content)
     responses = send_message(file_content, server_ip, "A", msg_id)
 

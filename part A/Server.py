@@ -12,11 +12,13 @@ ADDRESS = "0.0.0.0"
 PORT = 53
 TTL = 60
 MSG_TYPE = "A"
+RESPONSES_FOLDER = "Response\\"
 
 
 collected_data = {}
 data_lock = threading.Lock()
 current_file_name = ""
+file_length = 0
 
 
 def get_random_responses():
@@ -29,6 +31,23 @@ def choose_file():
     global current_file_name
     current_file_name = "org.txt"
     # current_file_name = input("Choose which file you'd like to receive: ")
+
+
+def create_new_file(file_id):
+    file_content = collected_data[file_id]
+    file_path = RESPONSES_FOLDER + file_name
+
+    with open(file_path, "wb") as f:
+        f.write(file_content)
+
+
+def is_integer_string(s):
+    print(s)
+    try:
+        int(s)
+        return True
+    except ValueError:
+        return False
 
 
 def handle_client_message(request):
@@ -48,13 +67,24 @@ def handle_client_message(request):
         except Exception as e:
             decoded = f"<decode error: {e}>"
         print(f"Client sent: {decoded}")
-        print("msg id: ", request.header.id)
+        # print("msg id: ", request.header.id)
+
+        if is_integer_string(decoded):
+            global file_length
+            with data_lock:
+                file_length = decoded
+            return
 
         # Store safely
         with data_lock:
             if request.header.id not in collected_data:
                 collected_data[request.header.id] = b""
             collected_data[request.header.id] += decoded.encode()
+        print("file length: ", file_length)
+        print("currently has: ", len(collected_data[request.header.id]))
+        if len(collected_data[request.header.id]) == file_length:  # TODO: One of them is a string, the other is int FIX
+            print("Got all file")
+            create_new_file(request.header.id)
 
 
 def create_response(request):
