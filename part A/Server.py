@@ -7,18 +7,17 @@ import base64
 import threading
 import random
 import sys
+from Server_Helper import file_object
 
 
 ADDRESS = "0.0.0.0"
 PORT = 53
 TTL = 60
-RESPONSES_FOLDER = "Response\\"
 MSG_TYPE = "A"
 
 
 collected_data = {}  # {dns_id: bytes}
 # TODO: make file object (name, length and content as attributes) then collected_data will be {dns_id: file_object}.
-file_length = 0  # expected file size, will be part of object
 current_file_name = None
 data_lock = threading.Lock()
 
@@ -43,14 +42,6 @@ def is_integer(value):
 
 
 # File Handling
-def write_file(file_id):
-    """Write collected data to disk"""
-    file_path = RESPONSES_FOLDER + current_file_name
-    with open(file_path, "wb") as f:
-        f.write(collected_data[file_id])
-    print(f"[+] File written: {file_path}")
-
-
 def choose_file():
     """Choose output file name"""
     global current_file_name
@@ -72,7 +63,7 @@ def decode_domain_data(domain_name):
     raw = domain_name.replace(".", "")
     padded = raw + "=" * (-len(raw) % 4)
     try:
-        return base64.b64decode(padded).decode(errors="ignore")
+        return base64.b64decode(padded)  # return bytes
     except Exception as e:
         return f"<decode error: {e}>"
 
@@ -83,27 +74,27 @@ def handle_txt_query():
 
 
 def handle_a_query(request):
-    global file_length
-
     domain = str(request.q.qname)
     decoded = decode_domain_data(domain)
     print(f"[>] Client sent: {decoded}")
 
+    file_id = request.header.id
+
     # First numeric message = file length
-    if is_integer(decoded):
+    if decoded.startswith(b"I:"):
+        file_length = int(decoded[2:])
         with data_lock:
-            file_length = int(decoded)
-            print(f"[+] Expected file length: {file_length}")
+            collected_data[file_id] = file_object(current_file_name, file_id, file_length)
+            print(f"[+] Expected file length: {collected_data[file_id].length}")
         return
 
-    with data_lock:
-        file_id = request.header.id
-        collected_data.setdefault(file_id, b"")
-        collected_data[file_id] += decoded.encode()
-
-        if file_length is not None and len(collected_data[file_id]) >= file_length:
-            print("[+] File fully received")
-            write_file(file_id)
+    elif file_id in collected_data:
+        # Here should only apaned to the file data and check if got all file
+        with data_lock:
+            collected_data[file_id].append_file(decoded)
+            if collected_data[file_id].check_if_got_all_file():
+                print("[+] File fully received")
+                collected_data[file_id].write_file()
 
 
 def handle_client_message(request):

