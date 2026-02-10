@@ -3,6 +3,7 @@ __author__ = "Adel Tchernitsky"
 
 import threading
 from Communication_Thread import handle_communication
+from Socket import *
 
 SERVER_ADDRESS = ("127.0.0.1", 1989)
 

@@ -9,4 +9,4 @@ class PlayerStatus(Enum):
     Finish = 0
     GetUserName = 1
     InGame = 2
-    ShowError = 9
+    ShowData = 9

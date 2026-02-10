@@ -17,7 +17,7 @@ class Player:
         self.socket = client_sock
         self.lobby = lobby
         self.status = status
-        self.current_stage_id = 0
+        self.current_stage_id = lobby.get_first_question_id()
         self.score = 0
         self.name = ""
 
@@ -40,6 +40,9 @@ class Player:
     def set_sock_timeout(self, timeout=None):
         set_timeout(self.socket, timeout)
 
+    def __repr__(self):
+        return (f"Player name: {self.name}\nCurrent score: {self.score}\nCurrent stage id: {self.current_stage_id}\n"
+                f"Current status: {self.status}")
 
 class Question:
     def __init__(self, qid, title, filepath ):
@@ -94,10 +97,6 @@ class Lobby:
         if user_name in [player.name for player in self.players]:
             return True
 
-        for r in self.rooms:
-            if r.check_user_name(user_name):
-                return True
-
         return False
 
     def add_player(self, player):
@@ -107,6 +106,9 @@ class Lobby:
     def remove_player(self, player):
         if player in self.players:
             self.players.remove(player)
+
+    def get_first_question_id(self):
+        return self.ctf.questions[0].id
 
 
 def get_stages():

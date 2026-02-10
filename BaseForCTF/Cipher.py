@@ -4,9 +4,9 @@ __author__ = "Adel Tchernitsky"
 from hashlib import md5
 from base64 import b64decode, b64encode
 
-from Cryptodome.Cipher import AES
-from Cryptodome.Random import get_random_bytes
-from Cryptodome.Util.Padding import pad, unpad
+from Crypto.Cipher import AES
+from Crypto.Random import get_random_bytes
+from Crypto.Util.Padding import pad, unpad
 
 
 KEY = "Hello there! General Kenobi"

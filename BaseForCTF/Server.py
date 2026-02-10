@@ -1,10 +1,11 @@
 __author__ = "Adel Tchernitsky"
 
 
-import socket
+from Socket import *
 import threading
 from Utils_for_server import *
 from Shared_Enum import PlayerStatus
+from Protocol import *
 
 
 BIND_ADDRESS = ("0.0.0.0", 1989)
@@ -24,11 +25,33 @@ def handle_get_username(player, lobby):
     """
     Handle receiving user_name from client
     """
-    pass
+    if not player.send(GetUserName()):  # Server asks client to send username
+        finish_player(lobby, player)
+        return
+
+    succeeded, player_name_msg = player.recv()
+    if not succeeded or isinstance(player_name_msg, Exit):  # In case client disconnected forcibly or closed the window
+        finish_player(lobby, player)
+        return
+
+    if not isinstance(player_name_msg, Login):
+        player.send(ProtocolError())  # Send message not by protocol error
+        finish_player(lobby, player)  # If got protocol error client will finish
+        return
+
+    if lobby.check_user_name(player_name_msg.user_name):    # In case user_name taken
+        if not player.send(NameAlreadyTakenError(player_name_msg.user_name)):
+            finish_player(lobby, player)
+        wait_time_out(ERROR_TIME_OUT)
+        return
+
+    player.name = player_name_msg.user_name
+    player.status = PlayerStatus.InGame
+    print(player)
 
 
 def handle_question_loop(player):
-    pass
+    pass  # TODO: write this function! This is why client status is'nt changing and the client endlessly asks for name
 
 
 def handle_client(player, lobby):
@@ -37,12 +60,13 @@ def handle_client(player, lobby):
     :param player: player object
     :param lobby: lobby object
     """
-    if player.status is Finish:
+    print(f"current player status {player.status}")
+    if player.status == PlayerStatus.Finish:
         finish_player(player, lobby)
-    elif player.status is PlayerStatus.GetUserName:
+    elif player.status == PlayerStatus.GetUserName:
         handle_get_username(player, lobby)
-    elif player.status is PlayerStatus.InGame:
-        pass # TODO: finish whatever should be here
+    elif player.status == PlayerStatus.InGame:
+        handle_question_loop(player)
 
 
 
@@ -66,7 +90,7 @@ def main():
         try:
             try:
                 client_sock, address = server_sock.accept()
-            except SocketTimeoutException:
+            except SOCKET_TIMEOUT_EXCEPTION:
                 continue
 
             player = Player(client_sock, lobby, PlayerStatus.GetUserName)  # Create player object for connected client
