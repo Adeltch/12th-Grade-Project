@@ -1,0 +1,15 @@
+{
+	"_comment": "(Is this a good idea? ->) Later will be a file only with the stages of the CTF (so it'll be easey to add a new riddle). Each part will lead to the right file with the riddle itself",
+  "Stages": [
+    {
+      "id": 1,
+      "title": "?",
+      "file": "Stage1.json"
+    },
+    {
+      "id": 2,
+      "title": "?",
+      "file": "Stage2.json"
+    }
+  ]
+}
