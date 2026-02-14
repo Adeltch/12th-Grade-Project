@@ -47,11 +47,42 @@ def handle_get_username(player, lobby):
 
     player.name = player_name_msg.user_name
     player.status = PlayerStatus.InGame
-    print(player)
 
 
-def handle_question_loop(player):
-    pass  # TODO: write this function! This is why client status is'nt changing and the client endlessly asks for name
+def handle_question_loop(player, lobby):
+    current_question = player.get_current_question()
+
+    if not player.send(QuestionMsg(current_question.description, int(current_question.id))):  # Server sends the question
+        finish_player(lobby, player)
+        return
+
+    succeeded, player_answer = player.recv()
+    if not succeeded or isinstance(player_answer, Exit):  # In case client disconnected forcibly or closed the window
+        finish_player(lobby, player)
+        return
+
+    if not isinstance(player_answer, Answer):
+        player.send(ProtocolError())  # Send message not by protocol error
+        finish_player(lobby, player)  # If got protocol error client will finish
+        return
+
+    if player_answer.answer == current_question.answer:
+        player_succeeded = True
+        player.increase_score()
+        if not player.move_question():  # In case game finished
+            player.status = PlayerStatus.ShowFinalScore
+
+    else:
+        player_succeeded = False
+
+    if not player.send(Response(player_succeeded, current_question.description, current_question.points)):
+        finish_player(lobby, player)
+        return
+
+
+def handle_show_final_score(player):
+    player.send(FinalScore(player.score))
+    player.status = PlayerStatus.Finish
 
 
 def handle_client(player, lobby):
@@ -60,19 +91,21 @@ def handle_client(player, lobby):
     :param player: player object
     :param lobby: lobby object
     """
-    print(f"current player status {player.status}")
-    if player.status == PlayerStatus.Finish:
-        finish_player(player, lobby)
-    elif player.status == PlayerStatus.GetUserName:
-        handle_get_username(player, lobby)
-    elif player.status == PlayerStatus.InGame:
-        handle_question_loop(player)
-
+    while True:
+        print(f"Currently the player: {player}\n")
+        if player.status == PlayerStatus.Finish:
+            finish_player(lobby, player)
+            break
+        elif player.status == PlayerStatus.GetUserName:
+            handle_get_username(player, lobby)
+        elif player.status == PlayerStatus.InGame:
+            handle_question_loop(player, lobby)
+        elif player.status == PlayerStatus.ShowFinalScore:
+            handle_show_final_score(player)
 
 
 def main():
     global finish
-
     lobby = Lobby(CTF(), [])  # Create the lobby
     # TODO: update get_questions
     if len(lobby.ctf.questions) == 0:  # If no questions can't play

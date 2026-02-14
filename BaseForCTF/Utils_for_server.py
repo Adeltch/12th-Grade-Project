@@ -40,9 +40,23 @@ class Player:
     def set_sock_timeout(self, timeout=None):
         set_timeout(self.socket, timeout)
 
+    def get_current_question(self):
+        return self.lobby.ctf.get_question_by_id(self.current_stage_id)
+
+    def increase_score(self):
+        self.score += self.get_current_question().points
+
+    def move_question(self):
+        next_question = self.lobby.ctf.get_next_question_by_id(self.current_stage_id)
+        if next_question is not None:
+            self.current_stage_id = next_question.id
+            return True
+        return False
+
     def __repr__(self):
         return (f"Player name: {self.name}\nCurrent score: {self.score}\nCurrent stage id: {self.current_stage_id}\n"
                 f"Current status: {self.status}")
+
 
 class Question:
     def __init__(self, qid, title, filepath ):
@@ -80,12 +94,24 @@ class Question:
 class CTF:
     def __init__(self):
         all_stages = get_stages()
-        print(all_stages)
         self.questions = []
         for stage in all_stages:
             new_question = Question(stage["id"], stage["title"], stage["file"])
             self.questions.append(new_question)
         print(self.questions)
+
+    def get_question_by_id(self, qid):
+        for q in self.questions:
+            if q.id == qid:
+                return q
+        return None
+
+    def get_next_question_by_id(self, qid):
+        try:
+            index = self.questions.index(self.get_question_by_id(qid))
+            return self.questions[index + 1]
+        except (ValueError, IndexError):
+            return None
 
 
 class Lobby:
