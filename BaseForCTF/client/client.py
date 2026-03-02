@@ -2,8 +2,8 @@ __author__ = "Adel Tchernitsky"
 
 
 import threading
-from Communication_Thread import handle_communication
-from Socket import *
+from client.communication_thread import handle_communication
+from shared.Socket import *
 
 SERVER_ADDRESS = ("127.0.0.1", 1989)
 
@@ -15,12 +15,7 @@ def main():
         return
 
     print(f"Connected to Server{SERVER_ADDRESS}")
-
-    communication_thread = threading.Thread(target=handle_communication, args=(client_socket,))
-
-    communication_thread.start()
-
-    communication_thread.join()  # Wait for thread to finish
+    handle_communication(client_socket)
 
     print("Client finished!")
 

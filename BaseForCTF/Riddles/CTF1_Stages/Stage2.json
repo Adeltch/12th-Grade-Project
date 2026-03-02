@@ -1,0 +1,6 @@
+{
+	"_comment": "This stage is ... ?",
+	"question": "Now decode this: Q1RGe2Jhc2U2NF9pc19ub3RfZW5jcnlwdGlvbn0=",
+	"flag": "CTF{base64_is_not_encryption}",
+	"points": 13
+}

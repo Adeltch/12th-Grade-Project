@@ -6,8 +6,8 @@ import pickle
 """import sys
 sys.path.append("..\\Protocol")
 # add this once these code is in Protocol folder"""
-from tcp_by_size import send_with_size, recv_by_size
-from Cipher import AESCipher
+from shared.tcp_by_size import send_with_size, recv_by_size
+from shared.Cipher import AESCipher
 
 
 SOCKET_TIMEOUT_EXCEPTION = socket.timeout

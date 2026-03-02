@@ -1,10 +1,9 @@
 __author__ = "Adel Tchernitsky"
 
 
-from Socket import *
-from Shared_Enum import PlayerStatus
-from Globals import *
-from Protocol import *
+from shared.Socket import *
+from shared.Shared_Enum import PlayerStatus
+from shared.Protocol import *
 
 
 SOCKET_TIMEOUT = 1

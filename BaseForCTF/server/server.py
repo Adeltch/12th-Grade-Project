@@ -1,11 +1,12 @@
 __author__ = "Adel Tchernitsky"
 
 
-from Socket import *
 import threading
-from Utils_for_server import *
-from Shared_Enum import PlayerStatus
-from Protocol import *
+import os
+from server.utils_for_server import *
+from shared.Socket import *
+from shared.Protocol import *
+from shared.Shared_Enum import PlayerStatus
 
 
 BIND_ADDRESS = ("0.0.0.0", 1989)
@@ -16,9 +17,38 @@ ACCEPT_TIMEOUT = 1
 finish = False
 
 
-def finish_player(place, player):
+def finish_player(lobby, player):
+    if player.status != PlayerStatus.Finish:
+        # Record total time
+        player.total_time = datetime.now() - player.game_start_time
     player.status = PlayerStatus.Finish
-    place.remove_player(player)
+    lobby.remove_player(player)
+
+
+def display_scoreboard(lobby):
+    """Prints a live scoreboard of all players on the server console"""
+    players = lobby.get_players_snapshot()
+    players = sorted(players, key=lambda p: p.score, reverse=True)
+
+    print("\n" + "="*50)
+    print(f"{'PLAYER':15} | {'STAGE':5} | {'SCORE':5} | {'TIME ELAPSED'}")
+    print("-"*50)
+
+    for p in players:
+        stage = p.current_stage_id
+        score = p.score
+
+        # If total_time exists (player finished), use it; otherwise calculate running time
+        if p.total_time:
+            elapsed = p.total_time
+        else:
+            elapsed = datetime.now() - p.game_start_time
+
+        # Format nicely (remove microseconds)
+        elapsed_str = str(elapsed).split('.')[0]
+
+        print(f"{p.name:15} | {stage:5} | {score:5} | {elapsed_str}")
+    print("="*50 + "\n")
 
 
 def handle_get_username(player, lobby):
@@ -66,7 +96,7 @@ def handle_question_loop(player, lobby):
         finish_player(lobby, player)  # If got protocol error client will finish
         return
 
-    if player_answer.answer == current_question.answer:
+    if player_answer.answer.strip() == current_question.flag:
         player_succeeded = True
         player.increase_score()
         if not player.move_question():  # In case game finished
@@ -100,6 +130,7 @@ def handle_client(player, lobby):
             handle_get_username(player, lobby)
         elif player.status == PlayerStatus.InGame:
             handle_question_loop(player, lobby)
+            display_scoreboard(lobby)
         elif player.status == PlayerStatus.ShowFinalScore:
             handle_show_final_score(player)
 

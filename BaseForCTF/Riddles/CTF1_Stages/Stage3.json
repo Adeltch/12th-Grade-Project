@@ -1,0 +1,6 @@
+{
+	"_comment": "This stage is ... ?",
+	"question": "Decode this ROT13 string and submit the flag: erzrzore gur ahzore guerr",
+    "flag": "CTF{remember_the_number_three}",
+	"points": 15
+}

@@ -1,0 +1,6 @@
+{
+	"_comment": "This stage is ... ?",
+	"question": "This hex string contains the flag. Decode it: 477265617420776f726b21",
+	"flag": "CTF{Great_work!}",
+	"points": 25
+}

@@ -1,0 +1,6 @@
+{
+	"_comment": "This stage requires to ... ?",
+	"question": "Decode this Base64 string and submit the flag: aGVsbG8=",
+    "flag": "CTF{hello}",
+    "points": 10	
+}

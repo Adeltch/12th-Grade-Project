@@ -4,12 +4,14 @@ __author__ = "Adel Tchernitsky"
 import os
 import json
 from enum import Enum
-from Socket import *
-from Shared_Enum import PlayerStatus
+import threading
+from datetime import datetime
+from shared.Socket import *
+from shared.Shared_Enum import PlayerStatus
 
 
 QUIZ_FOLDER_DIRECTORY = "Riddles\\"
-ALL_STAGES_FILE = "Stages.json"
+FIRST_CTF_FILE = "CTF1.json"
 
 
 class Player:
@@ -20,6 +22,9 @@ class Player:
         self.current_stage_id = lobby.get_first_question_id()
         self.score = 0
         self.name = ""
+        # Track when player started the game
+        self.game_start_time = datetime.now()
+        self.total_time = None  # Will store total time when player finishes
 
     def send(self, msg):
         if not send(self.socket, msg):
@@ -44,9 +49,11 @@ class Player:
         return self.lobby.ctf.get_question_by_id(self.current_stage_id)
 
     def increase_score(self):
+        """Add points for current question"""
         self.score += self.get_current_question().points
 
     def move_question(self):
+        """Move to the next question if it exists"""
         next_question = self.lobby.ctf.get_next_question_by_id(self.current_stage_id)
         if next_question is not None:
             self.current_stage_id = next_question.id
@@ -64,7 +71,7 @@ class Question:
         self.title = title
         self.filepath = filepath
         self.description = None
-        self.answer = None
+        self.flag = None
         self.points = None
 
         self.error = False
@@ -81,22 +88,23 @@ class Question:
         except (FileNotFoundError, PermissionError, UnicodeDecodeError):
             print(f"Error: Failed  to load from file {self.filepath}")
             self.error = True
+            return
 
         self.description = data["question"]
-        self.answer = data["answer"]
+        self.flag = data["flag"]
         self.points = data["points"]
 
     def __repr__(self):
         return (f"Question number: {self.id}, title: {self.title}, Has error occurred while getting question data:"
-                f"{self.error}, the question: {self.description}, the answer: {self.answer}, points: {self.points}")
+                f"{self.error}, the question: {self.description}, the flag: {self.flag}, points: {self.points}")
 
 
 class CTF:
     def __init__(self):
-        all_stages = get_stages()
+        all_stages, path = get_stages()
         self.questions = []
         for stage in all_stages:
-            new_question = Question(stage["id"], stage["title"], stage["file"])
+            new_question = Question(stage["id"], stage["title"], os.path.join(path, stage["file"]))
             self.questions.append(new_question)
         print(self.questions)
 
@@ -118,6 +126,7 @@ class Lobby:
     def __init__(self, questions, players):
         self.players = players
         self.ctf = questions
+        self.lock = threading.Lock()
 
     def check_user_name(self, user_name):   # Return true if user_name taken
         if user_name in [player.name for player in self.players]:
@@ -126,24 +135,28 @@ class Lobby:
         return False
 
     def add_player(self, player):
-        if player not in self.players:
-            self.players.append(player)
+        with self.lock:
+            if player not in self.players:
+                self.players.append(player)
 
     def remove_player(self, player):
-        if player in self.players:
-            self.players.remove(player)
+        with self.lock:
+            if player in self.players:
+                self.players.remove(player)
+
+    def get_players_snapshot(self):
+        with self.lock:
+            return list(self.players)
 
     def get_first_question_id(self):
-        return self.ctf.questions[0].id
+        with self.lock:
+            return self.ctf.questions[0].id
 
 
 def get_stages():
-    with open(f"{QUIZ_FOLDER_DIRECTORY}{ALL_STAGES_FILE}", "r") as f:
+    with open(f"{QUIZ_FOLDER_DIRECTORY}{FIRST_CTF_FILE}", "r") as f:
         data = json.load(f)
 
     all_stages = data["Stages"]
-    return all_stages
-
-
-if __name__ == "__main__":
-    main()
+    path = data["Path"]
+    return all_stages, path
