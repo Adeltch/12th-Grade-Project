@@ -1,6 +1,9 @@
 {
-	"_comment": "This stage is ... ?",
-	"question": "Decode this Caesar cipher with shift 3 and submit the flag: KHOOR",
+	"_comment": "This stage requires to do shift 3 on the given string",
+	"question": "Decode this Caesar cipher with the right shift, then submit flag: KHOOR",
 	"flag": "CTF{HELLO}",
-	"points": 20
+	"points": 20,
+	"category": "crypto",
+	"difficulty": "medium",
+	"hint": "Remember any specific number from last question?"
 }

@@ -2,6 +2,7 @@ __author__ = "Adel Tchernitsky"
 
 
 from dataclasses import dataclass, field
+from typing import Optional
 
 
 @dataclass
@@ -21,6 +22,13 @@ class QuestionMsg:
     """Question server sends to client"""
     question: str
     question_number: int
+    hint: Optional[str] = None
+
+
+@dataclass
+class HintRequest:
+    """Client asks the server for a hint"""
+    null: int = 0
 
 
 @dataclass

@@ -1,6 +1,9 @@
 {
-	"_comment": "This stage is ... ?",
+	"_comment": "This stage requires to use any ROT13 decoded, then put underscore between the words",
 	"question": "Decode this ROT13 string and submit the flag: erzrzore gur ahzore guerr",
     "flag": "CTF{remember_the_number_three}",
-	"points": 15
+	"points": 15,
+	"category": "crypto",
+	"difficulty": "medium",
+	"hint": "Try putting '_' between the words..."
 }

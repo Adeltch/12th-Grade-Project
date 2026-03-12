@@ -1,6 +1,9 @@
 {
-	"_comment": "This stage requires to ... ?",
+	"_comment": "This stage requires to decifer the given string using any base64 decoder",
 	"question": "Decode this Base64 string and submit the flag: aGVsbG8=",
     "flag": "CTF{hello}",
-    "points": 10	
+    "points": 10,
+	"category": "crypto",
+	"difficulty": "easy",
+	"hint": "Maybe it's encoded... Also try writing it like CTF{your_answer}"
 }

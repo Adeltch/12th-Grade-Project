@@ -12,6 +12,7 @@ from shared.Shared_Enum import PlayerStatus
 BIND_ADDRESS = ("0.0.0.0", 1989)
 LISTEN = 5
 ACCEPT_TIMEOUT = 1
+MAX_ATTEMPTS_PER_QUESTION = 10
 
 
 finish = False
@@ -28,7 +29,11 @@ def finish_player(lobby, player):
 def display_scoreboard(lobby):
     """Prints a live scoreboard of all players on the server console"""
     players = lobby.get_players_snapshot()
-    players = sorted(players, key=lambda p: p.score, reverse=True)
+    players = sorted(players, key=lambda p: (
+            -p.score,
+            p.total_time if p.total_time else datetime.now() - p.game_start_time
+        )
+    )  # Sorts the board by highest score and fastest time
 
     print("\n" + "="*50)
     print(f"{'PLAYER':15} | {'STAGE':5} | {'SCORE':5} | {'TIME ELAPSED'}")
@@ -55,59 +60,107 @@ def handle_get_username(player, lobby):
     """
     Handle receiving user_name from client
     """
-    if not player.send(GetUserName()):  # Server asks client to send username
-        finish_player(lobby, player)
-        return
-
-    succeeded, player_name_msg = player.recv()
-    if not succeeded or isinstance(player_name_msg, Exit):  # In case client disconnected forcibly or closed the window
-        finish_player(lobby, player)
-        return
-
-    if not isinstance(player_name_msg, Login):
-        player.send(ProtocolError())  # Send message not by protocol error
-        finish_player(lobby, player)  # If got protocol error client will finish
-        return
-
-    if lobby.check_user_name(player_name_msg.user_name):    # In case user_name taken
-        if not player.send(NameAlreadyTakenError(player_name_msg.user_name)):
+    while True:
+        # Ask for username
+        if not player.send(GetUserName()):
             finish_player(lobby, player)
-        wait_time_out(ERROR_TIME_OUT)
-        return
+            return
 
-    player.name = player_name_msg.user_name
-    player.status = PlayerStatus.InGame
+        succeeded, player_name_msg = player.recv()
+        if not succeeded or isinstance(player_name_msg, Exit):
+            finish_player(lobby, player)
+            return
+
+        if not isinstance(player_name_msg, Login):
+            player.send(ProtocolError())
+            finish_player(lobby, player)
+            return
+
+        # Username already taken
+        if lobby.check_user_name(player_name_msg.user_name):
+            if not player.send(NameAlreadyTakenError(player_name_msg.user_name)):
+                finish_player(lobby, player)
+                return
+            continue  # Ask for username again
+
+        # Username accepted
+        player.name = player_name_msg.user_name
+        player.status = PlayerStatus.InGame
+        break
 
 
 def handle_question_loop(player, lobby):
     current_question = player.get_current_question()
 
-    if not player.send(QuestionMsg(current_question.description, int(current_question.id))):  # Server sends the question
+    # Send the question, without hint initially
+    if not player.send(QuestionMsg(current_question.description, int(current_question.id), None)):
         finish_player(lobby, player)
         return
 
     succeeded, player_answer = player.recv()
-    if not succeeded or isinstance(player_answer, Exit):  # In case client disconnected forcibly or closed the window
+    if not succeeded or isinstance(player_answer, Exit):
         finish_player(lobby, player)
         return
 
-    if not isinstance(player_answer, Answer):
-        player.send(ProtocolError())  # Send message not by protocol error
-        finish_player(lobby, player)  # If got protocol error client will finish
-        return
-
-    if player_answer.answer.strip() == current_question.flag:
-        player_succeeded = True
-        player.increase_score()
-        if not player.move_question():  # In case game finished
-            player.status = PlayerStatus.ShowFinalScore
-
-    else:
-        player_succeeded = False
-
-    if not player.send(Response(player_succeeded, current_question.description, current_question.points)):
+    # Protocol safety check
+    if not isinstance(player_answer, (HintRequest, Answer)):
+        # Any message not by protocol
+        print(f"Received unexpected message type from {player.name}: {type(player_answer)}")
+        player.send(ProtocolError())
         finish_player(lobby, player)
         return
+
+    # Handle hint request
+    if isinstance(player_answer, HintRequest):
+        player.used_hint = True
+        if not player.send(QuestionMsg(current_question.description, int(current_question.id), current_question.hint)):
+            finish_player(lobby, player)
+        return
+
+    # Handle answer
+    if isinstance(player_answer, Answer):
+        # Correct answer
+        if player_answer.answer.strip().lower() == current_question.flag.strip().lower():
+            player_succeeded = True
+
+            # Award points (half if hint was used)
+            if player.used_hint:
+                player.score += current_question.points // 2
+            else:
+                player.increase_score()
+
+            # Reset per-question state
+            player.used_hint = False
+            player.attempts = 0
+
+            # Move to next question or finish
+            if not player.move_question():
+                player.status = PlayerStatus.ShowFinalScore
+
+        # Wrong answer
+        else:
+            player_succeeded = False
+            player.attempts += 1
+
+            # Too many attempts means skip question
+            if player.attempts >= MAX_ATTEMPTS_PER_QUESTION:
+                if not player.send(Response(
+                        False,
+                        f"Too many attempts ({MAX_ATTEMPTS_PER_QUESTION}) for this question. Moving to next challenge.",
+                        0
+                )):
+                    finish_player(lobby, player)
+                    return
+
+                player.attempts = 0
+                if not player.move_question():
+                    player.status = PlayerStatus.ShowFinalScore
+                return  # exit after skipping question
+
+        # Send regular response if player hasn't exceeded max attempts
+        if not player.send(Response(player_succeeded, current_question.description, current_question.points)):
+            finish_player(lobby, player)
+            return
 
 
 def handle_show_final_score(player):
@@ -158,7 +211,7 @@ def main():
                 continue
 
             player = Player(client_sock, lobby, PlayerStatus.GetUserName)  # Create player object for connected client
-            lobby.players.append(player)  # Adds new player to lobby
+            lobby.add_player(player)  # Adds new player to lobby
 
             t = threading.Thread(target=handle_client, args=(player, lobby))  # Create new thread for client
             t.start()

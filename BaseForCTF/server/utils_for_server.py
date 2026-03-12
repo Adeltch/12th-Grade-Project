@@ -10,7 +10,7 @@ from shared.Socket import *
 from shared.Shared_Enum import PlayerStatus
 
 
-QUIZ_FOLDER_DIRECTORY = "Riddles\\"
+QUIZ_FOLDER_DIRECTORY = "Riddles"
 FIRST_CTF_FILE = "CTF1.json"
 
 
@@ -19,12 +19,17 @@ class Player:
         self.socket = client_sock
         self.lobby = lobby
         self.status = status
+
         self.current_stage_id = lobby.get_first_question_id()
         self.score = 0
         self.name = ""
+
         # Track when player started the game
         self.game_start_time = datetime.now()
         self.total_time = None  # Will store total time when player finishes
+
+        self.used_hint = False
+        self.attempts = 0  # Track wrong attempts for current question
 
     def send(self, msg):
         if not send(self.socket, msg):
@@ -54,6 +59,8 @@ class Player:
 
     def move_question(self):
         """Move to the next question if it exists"""
+        self.used_hint = False
+
         next_question = self.lobby.ctf.get_next_question_by_id(self.current_stage_id)
         if next_question is not None:
             self.current_stage_id = next_question.id
@@ -70,9 +77,14 @@ class Question:
         self.id = qid
         self.title = title
         self.filepath = filepath
+
         self.description = None
         self.flag = None
         self.points = None
+
+        self.category = None
+        self.difficulty = None
+        self.hint = None
 
         self.error = False
         self.load_question_data()
@@ -83,7 +95,7 @@ class Question:
         :return: the question, the answer, and points for right answer
         """
         try:
-            with open(f"{QUIZ_FOLDER_DIRECTORY}{self.filepath}", "r") as f:
+            with open(os.path.join(QUIZ_FOLDER_DIRECTORY, self.filepath), "r") as f:
                 data = json.load(f)
         except (FileNotFoundError, PermissionError, UnicodeDecodeError):
             print(f"Error: Failed  to load from file {self.filepath}")
@@ -93,6 +105,10 @@ class Question:
         self.description = data["question"]
         self.flag = data["flag"]
         self.points = data["points"]
+
+        self.category = data.get("category", "misc")
+        self.difficulty = data.get("difficulty", "unknown")
+        self.hint = data.get("hint", None)
 
     def __repr__(self):
         return (f"Question number: {self.id}, title: {self.title}, Has error occurred while getting question data:"
@@ -129,10 +145,7 @@ class Lobby:
         self.lock = threading.Lock()
 
     def check_user_name(self, user_name):   # Return true if user_name taken
-        if user_name in [player.name for player in self.players]:
-            return True
-
-        return False
+        return any(player.name == user_name and player.name != "" for player in self.players)
 
     def add_player(self, player):
         with self.lock:
@@ -154,7 +167,7 @@ class Lobby:
 
 
 def get_stages():
-    with open(f"{QUIZ_FOLDER_DIRECTORY}{FIRST_CTF_FILE}", "r") as f:
+    with open(os.path.join(QUIZ_FOLDER_DIRECTORY, FIRST_CTF_FILE), "r") as f:
         data = json.load(f)
 
     all_stages = data["Stages"]

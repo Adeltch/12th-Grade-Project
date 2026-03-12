@@ -1,6 +1,9 @@
 {
-	"_comment": "This stage is ... ?",
+	"_comment": "This stage requires to decifer the given string using any base64 decoder",
 	"question": "Now decode this: Q1RGe2Jhc2U2NF9pc19ub3RfZW5jcnlwdGlvbn0=",
 	"flag": "CTF{base64_is_not_encryption}",
-	"points": 13
+	"points": 13,
+	"category": "crypto",
+	"difficulty": "easy",
+	"hint": "Remember the last encoded message? It had something in common with this one..."
 }

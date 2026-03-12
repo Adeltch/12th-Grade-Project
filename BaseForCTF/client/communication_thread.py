@@ -22,7 +22,11 @@ def handle_user_name_input():
 
 
 def get_answer(message):
-    return input(f"{message.question_number}. {message.question}\n Your answer: ")
+    text = f"{message.question_number}. {message.question}"
+    if message.hint is not None:
+        text += f"\nHint: {message.hint}"
+    text += "\nYour answer: "
+    return input(text)
 
 
 def handle_show_result(message):
@@ -69,12 +73,16 @@ def create_response(message):
     Create response that will send to server according to the player status and the input that got from client
     """
     print(f"\nCurrent status is: {status}")
+
     if status == PlayerStatus.Finish:
         return Exit()
     if status == PlayerStatus.GetUserName:
         return Login(handle_user_name_input())
     if status == PlayerStatus.InGame:
-        return Answer(get_answer(message))
+        current_answer = get_answer(message)
+        if current_answer == "hint":
+            return HintRequest()
+        return Answer(current_answer)
     if status in (PlayerStatus.ShowResponse, PlayerStatus.ShowFinalScore, PlayerStatus.ShowError):
         show_message_content(message)
         if status == PlayerStatus.ShowFinalScore:
