@@ -12,10 +12,13 @@ start "CyberCTF Server" cmd /k "python -m server.server"
 
 timeout /t 2 >nul
 
-echo [2/2] Starting Client...
-start "CyberCTF Client" cmd /k "python -m client.client"
+echo [2/2] Starting Clients...
+start "CyberCTF Client1" cmd /k "python -m client.client"
+
+start "CyberCTF Client2" cmd /k "python -m client.client"
 
 echo.
 echo System is running.
 echo Close the server window to stop everything.
 pause
+

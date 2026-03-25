@@ -142,6 +142,7 @@ class Lobby:
     def __init__(self, questions, players):
         self.players = players
         self.ctf = questions
+        # self.categories = None
         self.lock = threading.Lock()
 
     def check_user_name(self, user_name):   # Return true if user_name taken
