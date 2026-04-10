@@ -1,9 +1,9 @@
 {
-	"_comment": "This stage requires to do shift 3 on the given string",
-	"question": "Decode this Caesar cipher with the right shift, then submit flag: KHOOR",
-	"flag": "CTF{HELLO}",
-	"points": 20,
-	"category": "crypto",
-	"difficulty": "medium",
-	"hint": "Remember any specific number from last question?"
+	"_comment": "This stage requires decrypting a Vigenère cipher with a repeating key. The key is 'three'",
+    "question": "The ciphertext is: PLRXXTJBEXWHNR\nYou already know the key right?\nDecrypt it and submit the flag.",
+    "flag": "CTF{WEATTACKATDAWN}",
+    "points": 20,
+    "category": "crypto",
+    "difficulty": "medium",
+    "hint": "It's not a simple rotation, the key repeats to cover the whole message. Try writting a function to help you solve!"
 }

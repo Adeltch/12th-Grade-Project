@@ -1,6 +1,7 @@
 {
 	"_comment": "",
-	"Path": "CTF1_Stages\\",
+	"category": "Crypto",
+	"Path": "CTF1_Stages/",
 	"Stages": [
     {"id": 1, "title": "?", "file": "Stage1.json"},
     {"id": 2, "title": "?", "file": "Stage2.json"},

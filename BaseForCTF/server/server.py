@@ -20,8 +20,7 @@ finish = False
 
 def finish_player(lobby, player):
     if player.status != PlayerStatus.Finish:
-        # Record total time
-        player.total_time = datetime.now() - player.game_start_time
+        player.total_time = datetime.now() - player.game_start_time  # Record total time
     player.status = PlayerStatus.Finish
     lobby.remove_player(player)
 
@@ -30,30 +29,31 @@ def display_scoreboard(lobby):
     """Prints a live scoreboard of all players on the server console"""
     players = lobby.get_players_snapshot()
     players = sorted(players, key=lambda p: (
-            -p.score,
-            p.total_time if p.total_time else datetime.now() - p.game_start_time
+        -p.score,
+        p.total_time if p.total_time else (
+            datetime.now() - p.game_start_time if p.game_start_time else datetime.max
         )
-    )  # Sorts the board by highest score and fastest time
+    ))
 
-    print("\n" + "="*50)
-    print(f"{'PLAYER':15} | {'STAGE':5} | {'SCORE':5} | {'TIME ELAPSED'}")
-    print("-"*50)
+    print("\n" + "=" * 50)
+    print(f"{'PLAYER':15} | {'STAGE':5} | {'SCORE':5} | {'TOTAL TIME':12}")
+    print("-" * 50)
 
     for p in players:
-        stage = p.current_stage_id
-        score = p.score
-
-        # If total_time exists (player finished), use it; otherwise calculate running time
-        if p.total_time:
-            elapsed = p.total_time
+        # Total time
+        if p.game_start_time is None:
+            total_str = "Not started"
         else:
-            elapsed = datetime.now() - p.game_start_time
+            if p.total_time:
+                total_elapsed = p.total_time
+            else:
+                total_elapsed = datetime.now() - p.game_start_time
 
-        # Format nicely (remove microseconds)
-        elapsed_str = str(elapsed).split('.')[0]
+            total_str = str(total_elapsed).split('.')[0]
 
-        print(f"{p.name:15} | {stage:5} | {score:5} | {elapsed_str}")
-    print("="*50 + "\n")
+        print(f"{p.name:15} | {p.current_stage_id:5} | {p.score:5} | {total_str:12}")
+
+    print("=" * 50 + "\n")
 
 
 def handle_get_username(player, lobby):
@@ -86,11 +86,13 @@ def handle_get_username(player, lobby):
         # Username accepted
         player.name = player_name_msg.user_name
         player.status = PlayerStatus.InGame
+        player.game_start_time = datetime.now()
         break
 
 
 def handle_question_loop(player, lobby):
     current_question = player.get_current_question()
+    print(current_question)
 
     # Send the question, without hint initially
     if not player.send(QuestionMsg(current_question.description, int(current_question.id), None)):
@@ -176,6 +178,7 @@ def handle_client(player, lobby):
     """
     while True:
         print(f"Currently the player: {player}\n")
+
         if player.status == PlayerStatus.Finish:
             finish_player(lobby, player)
             break
@@ -190,7 +193,7 @@ def handle_client(player, lobby):
 
 def main():
     global finish
-    lobby = Lobby(CTF(), [])  # Create the lobby
+    lobby = Lobby()  # Create the initial lobby
     # TODO: update get_questions
     if len(lobby.ctf.questions) == 0:  # If no questions can't play
         print("No questions found, can't start CTF without them!")

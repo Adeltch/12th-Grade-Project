@@ -25,7 +25,7 @@ class Player:
         self.name = ""
 
         # Track when player started the game
-        self.game_start_time = datetime.now()
+        self.game_start_time = None
         self.total_time = None  # Will store total time when player finishes
 
         self.used_hint = False
@@ -36,7 +36,6 @@ class Player:
             print(f"{self.name} forcibly closed the connection")
             self.status = PlayerStatus.Finish
             return False
-
         return True
 
     def recv(self):
@@ -44,7 +43,6 @@ class Player:
         if not succeeded:
             print(f"{self.name} forcibly closed the connection")
             self.status = PlayerStatus.Finish
-
         return succeeded, data
 
     def set_sock_timeout(self, timeout=None):
@@ -73,7 +71,7 @@ class Player:
 
 
 class Question:
-    def __init__(self, qid, title, filepath ):
+    def __init__(self, qid, title, filepath):
         self.id = qid
         self.title = title
         self.filepath = filepath
@@ -94,11 +92,12 @@ class Question:
         reads all data about question from file
         :return: the question, the answer, and points for right answer
         """
+        print("Loading question data", self.id)
         try:
-            with open(os.path.join(QUIZ_FOLDER_DIRECTORY, self.filepath), "r") as f:
+            with open(self.filepath, "r") as f:
                 data = json.load(f)
-        except (FileNotFoundError, PermissionError, UnicodeDecodeError):
-            print(f"Error: Failed  to load from file {self.filepath}")
+        except (FileNotFoundError, PermissionError, UnicodeDecodeError) as e:
+            print(f"Error: Failed  to load from file {self.filepath}", e)
             self.error = True
             return
 
@@ -116,13 +115,29 @@ class Question:
 
 
 class CTF:
-    def __init__(self):
-        all_stages, path = get_stages()
+    def __init__(self, ctf_file_path=None):
+        print("In CTF")
+        if ctf_file_path is None:
+            # Default: load first ctf file
+            ctf_file_path = os.path.join(QUIZ_FOLDER_DIRECTORY, "CTF1.json")
+
+        with open(ctf_file_path, "r") as f:
+            data = json.load(f)
+
+        print(data)
+        all_stages = data["Stages"]
+        path = data["Path"]
         self.questions = []
+
         for stage in all_stages:
-            new_question = Question(stage["id"], stage["title"], os.path.join(path, stage["file"]))
+            stage_path = os.path.normpath(os.path.join(QUIZ_FOLDER_DIRECTORY, path, stage["file"]))
+            new_question = Question(stage["id"], stage["title"], stage_path)
             self.questions.append(new_question)
-        print(self.questions)
+
+        # Store metadata
+        self.category = data.get("category", "misc")
+        self.name = os.path.basename(ctf_file_path)
+        print(f"Loaded CTF: {self.name}, {len(self.questions)} stages")
 
     def get_question_by_id(self, qid):
         for q in self.questions:
@@ -139,9 +154,10 @@ class CTF:
 
 
 class Lobby:
-    def __init__(self, questions, players):
-        self.players = players
-        self.ctf = questions
+    def __init__(self):
+        self.players = []
+        self.all_ctfs = get_all_ctfs()
+        self.ctf = self.all_ctfs[0] # TODO: each client should choose his own ctf and get questions according to choice
         # self.categories = None
         self.lock = threading.Lock()
 
@@ -167,10 +183,24 @@ class Lobby:
             return self.ctf.questions[0].id
 
 
-def get_stages():
-    with open(os.path.join(QUIZ_FOLDER_DIRECTORY, FIRST_CTF_FILE), "r") as f:
-        data = json.load(f)
+def get_all_ctfs():
+    """
+    Scans the Riddles folder for all '.json' CTF files,
+    creates a CTF object for each, and returns a list of CTFs.
+    """
+    ctfs = []
+    for item in os.listdir(QUIZ_FOLDER_DIRECTORY):
+        print("Found:", item)
+        full_path = os.path.join(QUIZ_FOLDER_DIRECTORY, item)
+        print("full path:", full_path)
 
-    all_stages = data["Stages"]
-    path = data["Path"]
-    return all_stages, path
+        # Process only JSON files
+        if os.path.isfile(full_path) and item.lower().endswith(".json"):
+            try:
+                # Load CTF object
+                ctf_obj = CTF(ctf_file_path=full_path)
+                ctfs.append(ctf_obj)
+            except Exception as e:
+                print(f"Failed to load CTF from {item}: {e}")
+
+    return ctfs

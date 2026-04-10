@@ -1,9 +1,9 @@
 {
-	"_comment": "This stage requires to decifer the given string using any base64 decoder",
-	"question": "Now decode this: Q1RGe2Jhc2U2NF9pc19ub3RfZW5jcnlwdGlvbn0=",
-	"flag": "CTF{base64_is_not_encryption}",
-	"points": 13,
+	"_comment": "This stage requires to do .decode() on the given bites, then each char of the sting should be xored with 'hello' and put back together to get original string",
+	"question": "Remember the answer to stage1? It was used to xor a message for you, use it to understand this(.hex() was used on outup of xor): 2f17090d1b4945254c1c0d004c15001d450702001f450403184811034c170717",
+	"flag": "CTF{Great! I see you know how to xor}",
+	"points": 15,
 	"category": "crypto",
 	"difficulty": "easy",
-	"hint": "Remember the last encoded message? It had something in common with this one..."
+	"hint": "try turning the bites into characters and xor each char with the answer to stage1"
 }
