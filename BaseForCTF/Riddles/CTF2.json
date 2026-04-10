@@ -1,0 +1,12 @@
+{
+	"_comment": "Write this ctf cause it's empty",
+	"category": "",
+	"Path": "CTF2_Stages/",
+	"Stages": [
+    {"id": 1, "title": "?", "file": "Stage1.json"},
+    {"id": 2, "title": "?", "file": "Stage2.json"},
+	{"id": 3, "title": "?", "file": "Stage3.json"},
+	{"id": 4, "title": "?", "file": "Stage4.json"},
+	{"id": 5, "title": "?", "file": "Stage5.json"}
+  ]
+}

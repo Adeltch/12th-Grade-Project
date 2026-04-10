@@ -21,6 +21,15 @@ def handle_user_name_input():
     return input("Enter your user name: ")
 
 
+def handle_ctf_choice(message):
+    print("\nAvailable CTFs:")
+    for i, name in enumerate(message.all_ctfs):
+        print(f"{i+1}. {name}")
+
+    choice = int(input("Choose your CTF -> "))
+    return message.all_ctfs[choice - 1]
+
+
 def get_answer(message):
     text = f"{message.question_number}. {message.question}"
     if message.hint is not None:
@@ -56,12 +65,17 @@ def handle_message(message):
     print(f"MSG TYPE: {type(message)}")
     if isinstance(message, GetUserName):
         change_player_status(PlayerStatus.GetUserName)
+    elif isinstance(message, CTFList):
+        change_player_status(PlayerStatus.ChooseCTF)
     elif isinstance(message, QuestionMsg):
         change_player_status(PlayerStatus.InGame)
     elif isinstance(message, Response):
         change_player_status(PlayerStatus.ShowResponse)
     elif isinstance(message, FinalScore):
         change_player_status(PlayerStatus.ShowFinalScore)
+    elif isinstance(message, NameAlreadyTakenError):
+        print(f"Username '{message.user_name}' already taken!")
+        change_player_status(PlayerStatus.GetUserName)
     elif isinstance(message, GeneralError):
         change_player_status(PlayerStatus.ShowError)
 
@@ -78,6 +92,9 @@ def create_response(message):
         return Exit()
     if status == PlayerStatus.GetUserName:
         return Login(handle_user_name_input())
+    if status == PlayerStatus.ChooseCTF:
+        chosen = handle_ctf_choice(message)
+        return CTFChoice(chosen)
     if status == PlayerStatus.InGame:
         current_answer = get_answer(message)
         if current_answer == "hint":

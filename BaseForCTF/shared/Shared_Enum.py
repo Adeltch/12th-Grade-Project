@@ -8,7 +8,8 @@ class PlayerStatus(Enum):
     """Enum of all possible statuses a player can be in"""
     Finish = 0
     GetUserName = 1
-    InGame = 2
-    ShowResponse = 3
-    ShowFinalScore = 4
+    ChooseCTF = 2
+    InGame = 3
+    ShowResponse = 4
+    ShowFinalScore = 5
     ShowError = 9

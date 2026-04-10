@@ -18,6 +18,16 @@ class Login:
 
 
 @dataclass
+class CTFList:
+    all_ctfs: list[str]
+
+
+@dataclass
+class CTFChoice:
+    ctf_name: str
+
+
+@dataclass
 class QuestionMsg:
     """Question server sends to client"""
     question: str

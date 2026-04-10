@@ -20,7 +20,8 @@ class Player:
         self.lobby = lobby
         self.status = status
 
-        self.current_stage_id = lobby.get_first_question_id()
+        self.ctf = None  # Specific ctf client chooses himself
+        self.current_stage_id = None
         self.score = 0
         self.name = ""
 
@@ -49,17 +50,21 @@ class Player:
         set_timeout(self.socket, timeout)
 
     def get_current_question(self):
-        return self.lobby.ctf.get_question_by_id(self.current_stage_id)
+        return self.ctf.get_question_by_id(self.current_stage_id)
 
     def increase_score(self):
         """Add points for current question"""
         self.score += self.get_current_question().points
 
+    def set_ctf(self, ctf):
+        self.ctf = ctf
+        self.current_stage_id = ctf.questions[0].id
+
     def move_question(self):
         """Move to the next question if it exists"""
         self.used_hint = False
 
-        next_question = self.lobby.ctf.get_next_question_by_id(self.current_stage_id)
+        next_question = self.ctf.get_next_question_by_id(self.current_stage_id)
         if next_question is not None:
             self.current_stage_id = next_question.id
             return True
@@ -157,7 +162,6 @@ class Lobby:
     def __init__(self):
         self.players = []
         self.all_ctfs = get_all_ctfs()
-        self.ctf = self.all_ctfs[0] # TODO: each client should choose his own ctf and get questions according to choice
         # self.categories = None
         self.lock = threading.Lock()
 
@@ -181,6 +185,14 @@ class Lobby:
     def get_first_question_id(self):
         with self.lock:
             return self.ctf.questions[0].id
+
+    def get_ctf_by_name(self, name):
+        # Instead of searching every time can store self.ctf_map = {ctf.name: ctf for ctf in self.all_ctfs} in lobby
+        with self.lock:  # optional but good practice
+            for ctf in self.all_ctfs:
+                if ctf.name == name:
+                    return ctf
+        return None
 
 
 def get_all_ctfs():

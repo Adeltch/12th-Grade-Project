@@ -85,9 +85,39 @@ def handle_get_username(player, lobby):
 
         # Username accepted
         player.name = player_name_msg.user_name
-        player.status = PlayerStatus.InGame
+        player.status = PlayerStatus.ChooseCTF
         player.game_start_time = datetime.now()
         break
+
+
+def handle_choose_ctf(player, lobby):
+    # Send available CTF names
+    ctf_names = [ctf.name for ctf in lobby.all_ctfs]
+
+    if not player.send(CTFList(ctf_names)):
+        finish_player(lobby, player)
+        return
+
+    succeeded, msg = player.recv()
+    if not succeeded or isinstance(msg, Exit):
+        finish_player(lobby, player)
+        return
+
+    if not isinstance(msg, CTFChoice):
+        player.send(ProtocolError())
+        finish_player(lobby, player)
+        return
+
+    # Find selected CTF
+    selected_ctf = lobby.get_ctf_by_name(msg.ctf_name)
+
+    if not selected_ctf:
+        player.send(GeneralError("Invalid CTF choice"))
+        return  # let them try again
+
+    # Assign to player
+    player.set_ctf(selected_ctf)
+    player.status = PlayerStatus.InGame
 
 
 def handle_question_loop(player, lobby):
@@ -184,6 +214,8 @@ def handle_client(player, lobby):
             break
         elif player.status == PlayerStatus.GetUserName:
             handle_get_username(player, lobby)
+        elif player.status == PlayerStatus.ChooseCTF:
+            handle_choose_ctf(player, lobby)
         elif player.status == PlayerStatus.InGame:
             handle_question_loop(player, lobby)
             display_scoreboard(lobby)
@@ -195,7 +227,7 @@ def main():
     global finish
     lobby = Lobby()  # Create the initial lobby
     # TODO: update get_questions
-    if len(lobby.ctf.questions) == 0:  # If no questions can't play
+    if len(lobby.all_ctfs) == 0:  # If no questions can't play
         print("No questions found, can't start CTF without them!")
         return
 
