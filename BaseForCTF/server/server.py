@@ -92,9 +92,12 @@ def handle_get_username(player, lobby):
 
 def handle_choose_ctf(player, lobby):
     # Send available CTF names
-    ctf_names = [ctf.name for ctf in lobby.all_ctfs]
+    categories = {
+        cat: [ctf.name for ctf in ctfs]
+        for cat, ctfs in lobby.categories.items()
+    }
 
-    if not player.send(CTFList(ctf_names)):
+    if not player.send(CTFList(categories)):
         finish_player(lobby, player)
         return
 

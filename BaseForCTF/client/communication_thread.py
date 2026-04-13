@@ -22,12 +22,25 @@ def handle_user_name_input():
 
 
 def handle_ctf_choice(message):
-    print("\nAvailable CTFs:")
-    for i, name in enumerate(message.all_ctfs):
-        print(f"{i+1}. {name}")
+    print("\nAvailable CTFs:\n")
 
-    choice = int(input("Choose your CTF -> "))
-    return message.all_ctfs[choice - 1]
+    index = 1
+    flat_list = []
+
+    for category, ctfs in message.categories.items():
+        print(f"== {category.upper()} ==")
+        for ctf in ctfs:
+            print(f"{index}. {ctf}")
+            flat_list.append(ctf)
+            index += 1
+        print()
+
+    while True:
+        try:
+            choice = int(input("Choose your CTF -> "))
+            return flat_list[choice - 1]
+        except (ValueError, IndexError):
+            print("Invalid choice, try again.")
 
 
 def get_answer(message):

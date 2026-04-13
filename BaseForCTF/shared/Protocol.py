@@ -18,8 +18,9 @@ class Login:
 
 
 @dataclass
+@dataclass
 class CTFList:
-    all_ctfs: list[str]
+    categories: dict[str, list[str]]
 
 
 @dataclass
@@ -68,6 +69,7 @@ class Exit:
 
 
 #Error messages
+@dataclass
 class GeneralError:
     """Error message, message not by protocol"""
     error: str = "Error"
@@ -82,5 +84,5 @@ class ProtocolError(GeneralError):
 @dataclass
 class NameAlreadyTakenError(GeneralError):
     """Error message, name already taken"""
-    user_name: str
+    user_name: str = ""
     error: str = "Name already taken"

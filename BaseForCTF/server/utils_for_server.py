@@ -162,11 +162,15 @@ class Lobby:
     def __init__(self):
         self.players = []
         self.all_ctfs = get_all_ctfs()
-        # self.categories = None
+
+        self.ctf_map = {ctf.name: ctf for ctf in self.all_ctfs}
+        self.categories = self._build_categories()
+
         self.lock = threading.Lock()
 
     def check_user_name(self, user_name):   # Return true if user_name taken
-        return any(player.name == user_name and player.name != "" for player in self.players)
+        with self.lock:
+            return any(player.name == user_name and player.name != "" for player in self.players)
 
     def add_player(self, player):
         with self.lock:
@@ -187,12 +191,20 @@ class Lobby:
             return self.ctf.questions[0].id
 
     def get_ctf_by_name(self, name):
-        # Instead of searching every time can store self.ctf_map = {ctf.name: ctf for ctf in self.all_ctfs} in lobby
-        with self.lock:  # optional but good practice
-            for ctf in self.all_ctfs:
-                if ctf.name == name:
-                    return ctf
-        return None
+        with self.lock:
+            return self.ctf_map.get(name)
+
+    def _build_categories(self):
+        categories = {}
+
+        for ctf in self.all_ctfs:
+            cat = ctf.category
+            if cat not in categories:
+                categories[cat] = []
+
+            categories[cat].append(ctf)
+
+        return categories
 
 
 def get_all_ctfs():
