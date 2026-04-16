@@ -18,7 +18,6 @@ class Login:
 
 
 @dataclass
-@dataclass
 class CTFList:
     categories: dict[str, list[str]]
 

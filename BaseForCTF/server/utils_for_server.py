@@ -106,10 +106,16 @@ class Question:
             self.error = True
             return
 
-        self.description = data["question"]
-        self.flag = data["flag"]
-        self.points = data["points"]
+        try:
+            # Required fields (must exist)
+            self.description = data["question"]
+            self.flag = data["flag"]
+            self.points = data["points"]
+        except KeyError as e:
+            print(f"Missing key {e} in {self.filepath}")
+            self.error = True
 
+        # Optional fields
         self.category = data.get("category", "misc")
         self.difficulty = data.get("difficulty", "unknown")
         self.hint = data.get("hint", None)

@@ -125,8 +125,8 @@ def handle_choose_ctf(player, lobby):
 
 def handle_question_loop(player, lobby):
     current_question = player.get_current_question()
-    print(current_question)
 
+    # Here the ai suggested doing a while instead of return when hint is requested (think about this)
     # Send the question, without hint initially
     if not player.send(QuestionMsg(current_question.description, int(current_question.id), None)):
         finish_player(lobby, player)
@@ -156,6 +156,7 @@ def handle_question_loop(player, lobby):
     if isinstance(player_answer, Answer):
         # Correct answer
         if player_answer.answer.strip().lower() == current_question.flag.strip().lower():
+            # TODO: think about keeping hashed flags instead of plain text
             player_succeeded = True
 
             # Award points (half if hint was used)
@@ -208,6 +209,17 @@ def handle_client(player, lobby):
     Handle full client's game until he finishes or global finish is True
     :param player: player object
     :param lobby: lobby object
+
+    TODO: Think about changing this function using
+    STATE_HANDLERS = {
+    PlayerStatus.GetUserName: handle_get_username,
+    PlayerStatus.ChooseCTF: handle_choose_ctf,
+    PlayerStatus.InGame: handle_question_loop,
+    PlayerStatus.ShowFinalScore: handle_show_final_score}
+    and in the function:
+    handler = STATE_HANDLERS.get(player.status)
+    if handler:
+    handler(player, lobby)
     """
     while True:
         print(f"Currently the player: {player}\n")
