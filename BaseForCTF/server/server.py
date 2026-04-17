@@ -4,6 +4,7 @@ __author__ = "Adel Tchernitsky"
 import threading
 import os
 from server.utils_for_server import *
+from server.db_handler import *
 from shared.Socket import *
 from shared.Protocol import *
 from shared.Shared_Enum import PlayerStatus
@@ -20,9 +21,21 @@ finish = False
 
 def finish_player(lobby, player):
     if player.status != PlayerStatus.Finish:
-        player.total_time = datetime.now() - player.game_start_time  # Record total time
+        elapsed = (datetime.now() - player.game_start_time).total_seconds()
+        player.total_time += int(elapsed) # Records total time
     player.status = PlayerStatus.Finish
     lobby.remove_player(player)
+
+    if player.ctf:
+        save_progress(
+            player.name,
+            player.ctf.name,
+            player.current_stage_id,
+            player.score,
+            player.used_hint,
+            player.attempts,
+            player.total_time
+        )
 
 
 def display_scoreboard(lobby):
@@ -85,17 +98,33 @@ def handle_get_username(player, lobby):
 
         # Username accepted
         player.name = player_name_msg.user_name
+        # Ensure player exists in DB
+        create_player(player.name)
+
+        # Fetch player from db (optional for now)
+        # saved_player = get_player(player.name)
+
         player.status = PlayerStatus.ChooseCTF
-        player.game_start_time = datetime.now()
+        player.session_start_time = datetime.now()
         break
 
 
 def handle_choose_ctf(player, lobby):
+    progress_list = get_all_progress(player.name)
+    progress_map = {p["ctf_name"]: p for p in progress_list}
+
     # Send available CTF names
-    categories = {
-        cat: [ctf.name for ctf in ctfs]
-        for cat, ctfs in lobby.categories.items()
-    }
+    categories = {}
+
+    for cat, ctfs in lobby.categories.items():
+        categories[cat] = []
+        for ctf in ctfs:
+            if ctf.name in progress_map:
+                prog = progress_map[ctf.name]
+                label = f"{ctf.name} (Stage {prog['current_stage_id']}, Score {prog['score']})"
+            else:
+                label = f"{ctf.name} (new)"
+            categories[cat].append(label)
 
     if not player.send(CTFList(categories)):
         finish_player(lobby, player)
@@ -120,7 +149,24 @@ def handle_choose_ctf(player, lobby):
 
     # Assign to player
     player.set_ctf(selected_ctf)
+    update_last_ctf(player.name, selected_ctf.name)
+
+    progress = get_progress(player.name, selected_ctf.name)
+    if progress:
+        print(f"Resuming {selected_ctf.name} for {player.name}")
+
+        player.current_stage_id = progress["current_stage_id"]
+        player.score = progress["score"]
+        player.used_hint = progress["used_hint"]
+        player.attempts = progress["attempts"]
+        player.total_time = progress["total_time"]
+    else:
+        print(f"Starting new CTF {selected_ctf.name}")
+        player.total_time = 0
+
     player.status = PlayerStatus.InGame
+    player.game_start_time = datetime.now()
+    player.session_start_time = datetime.now()
 
 
 def handle_question_loop(player, lobby):
@@ -198,10 +244,25 @@ def handle_question_loop(player, lobby):
             finish_player(lobby, player)
             return
 
+        # Update time before saving
+        elapsed = (datetime.now() - player.session_start_time).total_seconds()
+        player.total_time += int(elapsed)
+        player.session_start_time = datetime.now()
+        # Save progress continuously
+        save_progress(
+            player.name,
+            player.ctf.name,
+            player.current_stage_id,
+            player.score,
+            player.used_hint,
+            player.attempts,
+            player.total_time
+        )
 
-def handle_show_final_score(player):
+
+def handle_show_final_score(player, lobby):
     player.send(FinalScore(player.score))
-    player.status = PlayerStatus.Finish
+    finish_player(lobby, player)
 
 
 def handle_client(player, lobby):
@@ -235,13 +296,14 @@ def handle_client(player, lobby):
             handle_question_loop(player, lobby)
             display_scoreboard(lobby)
         elif player.status == PlayerStatus.ShowFinalScore:
-            handle_show_final_score(player)
+            handle_show_final_score(player, lobby)
 
 
 def main():
     global finish
     lobby = Lobby()  # Create the initial lobby
     # TODO: update get_questions
+    init_db()
     if len(lobby.all_ctfs) == 0:  # If no questions can't play
         print("No questions found, can't start CTF without them!")
         return

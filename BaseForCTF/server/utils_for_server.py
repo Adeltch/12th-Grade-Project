@@ -27,7 +27,8 @@ class Player:
 
         # Track when player started the game
         self.game_start_time = None
-        self.total_time = None  # Will store total time when player finishes
+        self.session_start_time = None
+        self.total_time = 0  # Will store total time when player finishes
 
         self.used_hint = False
         self.attempts = 0  # Track wrong attempts for current question

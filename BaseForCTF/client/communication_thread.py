@@ -26,19 +26,21 @@ def handle_ctf_choice(message):
 
     index = 1
     flat_list = []
-
     for category, ctfs in message.categories.items():
-        print(f"== {category.upper()} ==")
+        print(f"~~ {category.upper()} ~~")
         for ctf in ctfs:
+            # Extract ctf name
+            clean_name = ctf.split(" (")[0]
+
             print(f"{index}. {ctf}")
-            flat_list.append(ctf)
+            flat_list.append((clean_name, ctf))
             index += 1
         print()
 
     while True:
         try:
             choice = int(input("Choose your CTF -> "))
-            return flat_list[choice - 1]
+            return flat_list[choice - 1][0]
         except (ValueError, IndexError):
             print("Invalid choice, try again.")
 
