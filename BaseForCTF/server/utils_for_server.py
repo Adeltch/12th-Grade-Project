@@ -5,19 +5,16 @@ import os
 import json
 from enum import Enum
 import threading
-from datetime import datetime
 from shared.Socket import *
 from shared.Shared_Enum import PlayerStatus
 
 
 QUIZ_FOLDER_DIRECTORY = "Riddles"
-FIRST_CTF_FILE = "CTF1.json"
 
 
 class Player:
-    def __init__(self, client_sock, lobby, status):
+    def __init__(self, client_sock, status):
         self.socket = client_sock
-        self.lobby = lobby
         self.status = status
 
         self.ctf = None  # Specific ctf client chooses himself
@@ -26,7 +23,7 @@ class Player:
         self.name = ""
 
         # Track when player started the game
-        self.game_start_time = None
+        self.ctf_start_time = None  # TODO: understand what each time counts!
         self.session_start_time = None
         self.total_time = 0  # Will store total time when player finishes
 
@@ -128,7 +125,6 @@ class Question:
 
 class CTF:
     def __init__(self, ctf_file_path=None):
-        print("In CTF")
         if ctf_file_path is None:
             # Default: load first ctf file
             ctf_file_path = os.path.join(QUIZ_FOLDER_DIRECTORY, "CTF1.json")
@@ -148,7 +144,7 @@ class CTF:
 
         # Store metadata
         self.category = data.get("category", "misc")
-        self.name = os.path.basename(ctf_file_path)
+        self.name = os.path.basename(ctf_file_path).split('.')[0]
         print(f"Loaded CTF: {self.name}, {len(self.questions)} stages")
 
     def get_question_by_id(self, qid):
@@ -170,6 +166,7 @@ class Lobby:
         self.players = []
         self.all_ctfs = get_all_ctfs()
 
+        # TODO: leave only one attribute which is ctfs and it's similar to the ctf_map created in get_all_ctfs()
         self.ctf_map = {ctf.name: ctf for ctf in self.all_ctfs}
         self.categories = self._build_categories()
 
@@ -217,8 +214,9 @@ class Lobby:
 def get_all_ctfs():
     """
     Scans the Riddles folder for all '.json' CTF files,
-    creates a CTF object for each, and returns a list of CTFs.
+    creates a CTF object for each, and returns a map of CTFs.
     """
+    # TODO: return a ctf_map here like the one that's currently an object in the LOBBY
     ctfs = []
     for item in os.listdir(QUIZ_FOLDER_DIRECTORY):
         print("Found:", item)

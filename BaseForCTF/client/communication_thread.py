@@ -73,26 +73,27 @@ def show_message_content(message):
     OUTPUT_HANDLING[type(message)](message)
 
 
+MESSAGE_STATUS_DICT = {GetUserName: PlayerStatus.GetUserName, CTFList: PlayerStatus.ChooseCTF,
+                      QuestionMsg: PlayerStatus.InGame, Response: PlayerStatus.ShowResponse,
+                      FinalScore: PlayerStatus.ShowFinalScore, GeneralError: PlayerStatus.ShowError}
+
+
 def handle_message(message):
     """
     Handle message server sent, updates global according to message type
     """
     print(f"MSG TYPE: {type(message)}")
-    if isinstance(message, GetUserName):
-        change_player_status(PlayerStatus.GetUserName)
-    elif isinstance(message, CTFList):
-        change_player_status(PlayerStatus.ChooseCTF)
-    elif isinstance(message, QuestionMsg):
-        change_player_status(PlayerStatus.InGame)
-    elif isinstance(message, Response):
-        change_player_status(PlayerStatus.ShowResponse)
-    elif isinstance(message, FinalScore):
-        change_player_status(PlayerStatus.ShowFinalScore)
-    elif isinstance(message, NameAlreadyTakenError):
+
+    # Special case
+    # TODO: special cases aren't special enough
+    if isinstance(message, NameAlreadyTakenError):
         print(f"Username '{message.user_name}' already taken!")
         change_player_status(PlayerStatus.GetUserName)
-    elif isinstance(message, GeneralError):
-        change_player_status(PlayerStatus.ShowError)
+    else:
+        for msg_type, status in MESSAGE_STATUS_DICT.items():
+            if isinstance(message, msg_type):
+                change_player_status(status)
+                break
 
     return create_response(message)
 
@@ -101,6 +102,7 @@ def create_response(message):
     """
     Create response that will send to server according to the player status and the input that got from client
     """
+    #TODO: make funciton shorter
     print(f"\nCurrent status is: {status}")
 
     if status == PlayerStatus.Finish:

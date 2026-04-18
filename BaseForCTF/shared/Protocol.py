@@ -57,7 +57,7 @@ class Response:
 
 @dataclass
 class FinalScore:
-    """Final quiz score the server sends to the client at th end of the game"""
+    """Final quiz score the server sends to the client at the end of the game"""
     score: int
 
 
@@ -67,7 +67,7 @@ class Exit:
     null: int = 0
 
 
-#Error messages
+# Error messages
 @dataclass
 class GeneralError:
     """Error message, message not by protocol"""

@@ -3,6 +3,7 @@ __author__ = "Adel Tchernitsky"
 
 import threading
 import os
+from datetime import datetime
 from server.utils_for_server import *
 from server.db_handler import *
 from shared.Socket import *
@@ -21,52 +22,55 @@ finish = False
 
 def finish_player(lobby, player):
     if player.status != PlayerStatus.Finish:
-        elapsed = (datetime.now() - player.game_start_time).total_seconds()
-        player.total_time += int(elapsed) # Records total time
+        elapsed = (datetime.now() - player.ctf_start_time).total_seconds()
+        player.total_time += int(elapsed)  # Records total time
+
     player.status = PlayerStatus.Finish
     lobby.remove_player(player)
 
     if player.ctf:
-        save_progress(
-            player.name,
-            player.ctf.name,
-            player.current_stage_id,
-            player.score,
-            player.used_hint,
-            player.attempts,
-            player.total_time
-        )
+        save_progress(player.name, player.ctf.name, player.current_stage_id, player.score, player.used_hint,
+                      player.attempts, player.total_time)
 
 
 def display_scoreboard(lobby):
     """Prints a live scoreboard of all players on the server console"""
     players = lobby.get_players_snapshot()
+    now = datetime.now()
+
     players = sorted(players, key=lambda p: (
         -p.score,
-        p.total_time if p.total_time else (
-            datetime.now() - p.game_start_time if p.game_start_time else datetime.max
+        p.total_time if p.total_time is not None else (
+            int((now - p.game_start_time).total_seconds()) if p.game_start_time else float('inf')
         )
     ))
 
-    print("\n" + "=" * 50)
-    print(f"{'PLAYER':15} | {'STAGE':5} | {'SCORE':5} | {'TOTAL TIME':12}")
-    print("-" * 50)
+    print("\n" + "=" * 65)
+    print(f"{'PLAYER':15} | {'CTF':15} | {'STAGE':5} | {'SCORE':5} | {'TOTAL TIME':12}")
+    print("-" * 65)
 
     for p in players:
+        name = p.name if p.name is not None else ""
+        stage = p.current_stage_id if p.current_stage_id is not None else ""
+        score = p.score if p.score is not None else 0
+
+        # CTF name (safe access)
+        ctf_name = p.ctf.name if getattr(p, "ctf", None) else "No CTF"
+
         # Total time
-        if p.game_start_time is None:
+        if p.ctf_start_time is None:
             total_str = "Not started"
         else:
-            if p.total_time:
+            if p.total_time is not None:
                 total_elapsed = p.total_time
             else:
-                total_elapsed = datetime.now() - p.game_start_time
+                total_elapsed = int((now - p.ctf_start_time).total_seconds())
 
-            total_str = str(total_elapsed).split('.')[0]
+            total_str = str(total_elapsed)
 
-        print(f"{p.name:15} | {p.current_stage_id:5} | {p.score:5} | {total_str:12}")
+        print(f"{name:15} | {ctf_name:15} | {stage:5} | {score:5} | {total_str:12}")
 
-    print("=" * 50 + "\n")
+    print("=" * 65 + "\n")
 
 
 def handle_get_username(player, lobby):
@@ -165,14 +169,13 @@ def handle_choose_ctf(player, lobby):
         player.total_time = 0
 
     player.status = PlayerStatus.InGame
-    player.game_start_time = datetime.now()
+    player.ctf_start_time = datetime.now()
     player.session_start_time = datetime.now()
 
 
 def handle_question_loop(player, lobby):
     current_question = player.get_current_question()
 
-    # Here the ai suggested doing a while instead of return when hint is requested (think about this)
     # Send the question, without hint initially
     if not player.send(QuestionMsg(current_question.description, int(current_question.id), None)):
         finish_player(lobby, player)
@@ -249,15 +252,8 @@ def handle_question_loop(player, lobby):
         player.total_time += int(elapsed)
         player.session_start_time = datetime.now()
         # Save progress continuously
-        save_progress(
-            player.name,
-            player.ctf.name,
-            player.current_stage_id,
-            player.score,
-            player.used_hint,
-            player.attempts,
-            player.total_time
-        )
+        save_progress(player.name, player.ctf.name, player.current_stage_id, player.score, player.used_hint,
+                      player.attempts, player.total_time)
 
 
 def handle_show_final_score(player, lobby):
@@ -265,38 +261,25 @@ def handle_show_final_score(player, lobby):
     finish_player(lobby, player)
 
 
+STATE_HANDLERS = {PlayerStatus.GetUserName: handle_get_username, PlayerStatus.ChooseCTF: handle_choose_ctf,
+                  PlayerStatus.InGame: handle_question_loop, PlayerStatus.ShowFinalScore: handle_show_final_score}
+
+
 def handle_client(player, lobby):
     """
     Handle full client's game until he finishes or global finish is True
     :param player: player object
     :param lobby: lobby object
-
-    TODO: Think about changing this function using
-    STATE_HANDLERS = {
-    PlayerStatus.GetUserName: handle_get_username,
-    PlayerStatus.ChooseCTF: handle_choose_ctf,
-    PlayerStatus.InGame: handle_question_loop,
-    PlayerStatus.ShowFinalScore: handle_show_final_score}
-    and in the function:
-    handler = STATE_HANDLERS.get(player.status)
-    if handler:
-    handler(player, lobby)
     """
-    while True:
+    while player.status != PlayerStatus.Finish:
         print(f"Currently the player: {player}\n")
+        handler = STATE_HANDLERS.get(player.status)
+        if handler:
+            handler(player, lobby)
+            if player.status == PlayerStatus.InGame:
+                display_scoreboard(lobby)
 
-        if player.status == PlayerStatus.Finish:
-            finish_player(lobby, player)
-            break
-        elif player.status == PlayerStatus.GetUserName:
-            handle_get_username(player, lobby)
-        elif player.status == PlayerStatus.ChooseCTF:
-            handle_choose_ctf(player, lobby)
-        elif player.status == PlayerStatus.InGame:
-            handle_question_loop(player, lobby)
-            display_scoreboard(lobby)
-        elif player.status == PlayerStatus.ShowFinalScore:
-            handle_show_final_score(player, lobby)
+    finish_player(lobby, player)
 
 
 def main():
@@ -322,7 +305,7 @@ def main():
             except SOCKET_TIMEOUT_EXCEPTION:
                 continue
 
-            player = Player(client_sock, lobby, PlayerStatus.GetUserName)  # Create player object for connected client
+            player = Player(client_sock, PlayerStatus.GetUserName)  # Create player object for connected client
             lobby.add_player(player)  # Adds new player to lobby
 
             t = threading.Thread(target=handle_client, args=(player, lobby))  # Create new thread for client
