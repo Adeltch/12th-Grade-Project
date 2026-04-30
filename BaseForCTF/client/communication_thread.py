@@ -4,6 +4,7 @@ __author__ = "Adel Tchernitsky"
 from shared.Socket import *
 from shared.Shared_Enum import PlayerStatus
 from shared.Protocol import *
+import client.gui as gui
 
 
 SOCKET_TIMEOUT = 1
@@ -18,52 +19,27 @@ def change_player_status(new_status):
 
 
 def handle_user_name_input():
-    return input("Enter your user name: ")
+    return gui.handle_user_name_input()
 
 
 def handle_ctf_choice(message):
-    print("\nAvailable CTFs:\n")
-
-    index = 1
-    flat_list = []
-    for category, ctfs in message.categories.items():
-        print(f"~~ {category.upper()} ~~")
-        for ctf in ctfs:
-            # Extract ctf name
-            clean_name = ctf.split(" (")[0]
-
-            print(f"{index}. {ctf}")
-            flat_list.append((clean_name, ctf))
-            index += 1
-        print()
-
-    while True:
-        try:
-            choice = int(input("Choose your CTF -> "))
-            return flat_list[choice - 1][0]
-        except (ValueError, IndexError):
-            print("Invalid choice, try again.")
+    return gui.handle_ctf_choice(message)
 
 
 def get_answer(message):
-    text = f"{message.question_number}. {message.question}"
-    if message.hint is not None:
-        text += f"\nHint: {message.hint}"
-    text += "\nYour answer: "
-    return input(text)
+    return gui.get_answer(message)
 
 
 def handle_show_result(message):
-    print(f"\nYour answer was {'correct' if message.is_correct else 'incorrect'}\n"
-          f"Points for this question: {message.points_for_correct_answer}")
+    gui.handle_show_result(message)
 
 
 def handle_show_final_score(message):
-    print(f"\nYour final score: {message.score}")
+    gui.handle_show_final_score(message)
 
 
 def handle_show_error(message):
-    print(f"\nError: {message.error}")
+    gui.handle_show_error(message)
 
 
 OUTPUT_HANDLING = {Response: handle_show_result, FinalScore: handle_show_final_score, GeneralError: handle_show_error}
@@ -79,15 +55,7 @@ MESSAGE_STATUS_DICT = {GetUserName: PlayerStatus.GetUserName, CTFList: PlayerSta
 
 
 def handle_message(message):
-    """
-    Handle message server sent, updates global according to message type
-    """
-    print(f"MSG TYPE: {type(message)}")
-
-    # Special case
-    # TODO: special cases aren't special enough
     if isinstance(message, NameAlreadyTakenError):
-        print(f"Username '{message.user_name}' already taken!")
         change_player_status(PlayerStatus.GetUserName)
     else:
         for msg_type, status in MESSAGE_STATUS_DICT.items():
@@ -99,12 +67,6 @@ def handle_message(message):
 
 
 def create_response(message):
-    """
-    Create response that will send to server according to the player status and the input that got from client
-    """
-    #TODO: make funciton shorter
-    print(f"\nCurrent status is: {status}")
-
     if status == PlayerStatus.Finish:
         return Exit()
     if status == PlayerStatus.GetUserName:
@@ -129,7 +91,7 @@ def handle_communication(client_socket):
     while True:
         try:
             succeeded, message = recv(client_socket)
-            if not succeeded:  # In case server disconnected everything will finish
+            if not succeeded:
                 change_player_status(PlayerStatus.Finish)
                 break
         except SOCKET_TIMEOUT_EXCEPTION:
@@ -138,14 +100,12 @@ def handle_communication(client_socket):
             break
 
         response = handle_message(message)
-        print(f"\nResponse is: {response}")
         if response:
-            if not send(client_socket, response):  # In case server disconnected everything will finish
+            if not send(client_socket, response):
                 change_player_status(PlayerStatus.Finish)
                 break
 
         if isinstance(response, Exit):
             break
 
-    close(client_socket)  # Close client socket once finished
-    print("Client finished")
+    close(client_socket)
