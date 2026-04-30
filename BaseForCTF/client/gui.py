@@ -1,32 +1,96 @@
 __author__ = "Adel Tchernitsky"
 
-
 import tkinter as tk
 from tkinter import ttk, messagebox
 from queue import Queue, Empty
-
 
 request_queue = Queue()
 response_queue = Queue()
 root = None
 current_frame = None
 
+# Modern theme palette
+BG_COLOR = "#121826"
+CARD_COLOR = "#1f2937"
+TEXT_COLOR = "#eef2ff"
+SUBTEXT_COLOR = "#94a3b8"
+ACCENT_COLOR = "#60a5fa"
+ACCENT_HOVER = "#3b82f6"
+SUCCESS_COLOR = "#22c55e"
+ERROR_COLOR = "#f97316"
+INPUT_BG = "#0f172a"
+INPUT_BORDER = "#334155"
+LIST_BG = "#111827"
+LIST_FG = "#eef2ff"
+SELECT_BG = "#2563eb"
+SELECT_FG = "#f8fafc"
+
+FONT_TITLE = ("Segoe UI", 18, "bold")
+FONT_SUBTITLE = ("Segoe UI", 11)
+FONT_CARD_TITLE = ("Segoe UI", 14, "bold")
+FONT_BODY = ("Segoe UI", 11)
+FONT_BUTTON = ("Segoe UI", 11, "bold")
+
 
 def initialize_gui():
     global root
     root = tk.Tk()
     root.title("CTF Game Client")
-    root.geometry("600x500")
-    root.resizable(True, True)
+    root.geometry("740x620")
+    root.minsize(720, 560)
+    root.configure(bg=BG_COLOR)
+    configure_style()
     check_queue()
     return root
+
+
+def configure_style():
+    style = ttk.Style(root)
+    style.theme_use("clam")
+
+    style.configure("TFrame", background=BG_COLOR)
+    style.configure("Card.TFrame", background=CARD_COLOR, relief="flat")
+    style.configure("Header.TLabel", background=BG_COLOR, foreground=TEXT_COLOR, font=FONT_TITLE)
+    style.configure("Subtitle.TLabel", background=BG_COLOR, foreground=SUBTEXT_COLOR, font=FONT_SUBTITLE)
+    style.configure("CardHeader.TLabel", background=CARD_COLOR, foreground=TEXT_COLOR, font=FONT_CARD_TITLE)
+    style.configure("CardText.TLabel", background=CARD_COLOR, foreground=TEXT_COLOR, font=FONT_BODY, wraplength=640)
+
+    style.configure("Accent.TButton",
+                    background=ACCENT_COLOR,
+                    foreground=TEXT_COLOR,
+                    font=FONT_BUTTON,
+                    borderwidth=0,
+                    focusthickness=3,
+                    focuscolor=ACCENT_HOVER)
+    style.map("Accent.TButton",
+              background=[("active", ACCENT_HOVER), ("disabled", "#475569")])
+
+    style.configure("Secondary.TButton",
+                    background="#334155",
+                    foreground=TEXT_COLOR,
+                    font=FONT_BUTTON,
+                    borderwidth=0)
+    style.map("Secondary.TButton",
+              background=[("active", "#475569")])
+
+    style.configure("Card.TLabelframe", background=CARD_COLOR, borderwidth=0)
+    style.configure("Card.TLabelframe.Label", background=CARD_COLOR, foreground=SUBTEXT_COLOR, font=FONT_BODY)
+    style.configure("TEntry",
+                    fieldbackground=INPUT_BG,
+                    foreground=TEXT_COLOR,
+                    background=INPUT_BG,
+                    bordercolor=INPUT_BORDER,
+                    lightcolor=ACCENT_COLOR,
+                    darkcolor=INPUT_BORDER)
+    style.configure("TLabel", background=BG_COLOR, foreground=TEXT_COLOR, font=FONT_BODY)
+
 
 
 def check_queue():
     try:
         while True:
             request_type, data = request_queue.get_nowait()
-            
+
             if request_type == "show_username_input":
                 show_username_input()
             elif request_type == "show_ctf_choice":
@@ -41,12 +105,11 @@ def check_queue():
                 show_error(data)
             elif request_type == "close_app":
                 root.quit()
-                    
+
     except Empty:
         pass
-    
-    root.after(100, check_queue)
 
+    root.after(100, check_queue)
 
 
 def clear_frame():
@@ -54,23 +117,88 @@ def clear_frame():
     if current_frame:
         current_frame.destroy()
     current_frame = ttk.Frame(root)
-    current_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+    current_frame.pack(fill=tk.BOTH, expand=True, padx=18, pady=18)
+
+
+def create_header(title, subtitle):
+    header_frame = ttk.Frame(current_frame, style="Card.TFrame")
+    header_frame.pack(fill=tk.X, pady=(0, 18), ipadx=14, ipady=14)
+
+    title_label = ttk.Label(header_frame, text=title, style="Header.TLabel")
+    title_label.pack(anchor="w")
+
+    subtitle_label = ttk.Label(header_frame, text=subtitle, style="Subtitle.TLabel")
+    subtitle_label.pack(anchor="w", pady=(6, 0))
+
+
+def unbind_enter():
+    if root:
+        root.unbind("<Return>")
+
+
+def show_instructions_window():
+    """Open a modal window displaying game instructions."""
+    instructions_window = tk.Toplevel(root)
+    instructions_window.title("Game Instructions")
+    instructions_window.configure(bg=BG_COLOR)
+    instructions_window.geometry("640x670")  # Instruction window size
+    instructions_window.minsize(620, 480)
+    instructions_window.transient(root)
+    instructions_window.grab_set()
+
+    container = ttk.Frame(instructions_window, style="Card.TFrame")
+    container.pack(fill=tk.BOTH, expand=True, padx=18, pady=18)
+
+    title_label = ttk.Label(container, text="How to Play", style="CardHeader.TLabel")
+    title_label.pack(anchor="w", pady=(0, 8))
+
+    intro_text = (
+        "Welcome to the CTF game!\n\n"
+        "Choose a CTF category and answer each question with the correct flag format. "
+        "Questions appear one at a time, and your score is tracked as you progress."
+    )
+    intro_label = ttk.Label(container, text=intro_text, style="CardText.TLabel", wraplength=590, justify=tk.LEFT)
+    intro_label.pack(anchor="w", pady=(0, 14))
+
+    instructions = [
+        "1. Enter a unique username to start. Every username is stored as a separate player.",
+        "2. Select a CTF from the list to begin the challenge.",
+        "3. Answer each question using the required format: CTF{your_answer}.",
+        "4. If you enter a new username, your progress and stages are saved separately for that user.",
+        "5. Use the Request Hint button to get a helpful hint when available.",
+        "6. After each question, continue to the next stage until the game ends.",
+        "7. Answers are case-sensitive and should be entered exactly in the accepted flag format.",
+        "8. Keep your answers concise and avoid extra spaces around the flag.",
+    ]
+
+    for item in instructions:
+        bullet_label = ttk.Label(container, text=item, style="CardText.TLabel", wraplength=590, justify=tk.LEFT)
+        bullet_label.pack(anchor="w", pady=(0, 8))
+
+    close_button = ttk.Button(container, text="Close Instructions", command=instructions_window.destroy, style="Accent.TButton")
+    close_button.pack(pady=(14, 0), ipadx=10, ipady=8, anchor="e")
+
+    close_button.focus_set()
+    instructions_window.wait_window()
 
 
 def show_username_input():
     clear_frame()
-    
-    title_label = ttk.Label(current_frame, text="Welcome to CTF Game", font=("Arial", 16, "bold"))
-    title_label.pack(pady=20)
-    
-    instruction = ttk.Label(current_frame, text="Enter your username:", font=("Arial", 12))
-    instruction.pack(pady=10)
-    
+    unbind_enter()
+    create_header("Welcome to CTF Game", "Enter your username to join the challenge.")
+
+    card = ttk.Frame(current_frame, style="Card.TFrame")
+    card.pack(fill=tk.BOTH, expand=True, padx=4, pady=4)
+
+    input_frame = ttk.Frame(card, style="Card.TFrame")
+    input_frame.pack(fill=tk.X, padx=24, pady=18)
+
     username_var = tk.StringVar()
-    username_entry = ttk.Entry(current_frame, textvariable=username_var, width=40)
-    username_entry.pack(pady=10)
+    username_entry = ttk.Entry(input_frame, textvariable=username_var, width=34)
+    username_entry.configure(font=FONT_BODY)
+    username_entry.pack(fill=tk.X, pady=(10, 0))
     username_entry.focus()
-    
+
     def submit_username():
         username = username_var.get().strip()
         if not username:
@@ -78,45 +206,55 @@ def show_username_input():
             return
         response_queue.put(username)
         username_entry.delete(0, tk.END)
-    
-    submit_button = ttk.Button(current_frame, text="Enter Game", command=submit_username)
-    submit_button.pack(pady=10)
-    
+
+    submit_button = ttk.Button(card, text="Enter Game", command=submit_username, style="Accent.TButton")
+    submit_button.pack(pady=(0, 20), ipadx=10, ipady=8)
+
     username_entry.bind("<Return>", lambda e: submit_username())
 
 
 def show_ctf_choice(message):
     clear_frame()
-    
-    title_label = ttk.Label(current_frame, text="Select a CTF Challenge", font=("Arial", 16, "bold"))
-    title_label.pack(pady=15)
-    
-    list_frame = ttk.Frame(current_frame)
-    list_frame.pack(fill=tk.BOTH, expand=True, pady=10)
-    
-    scrollbar = ttk.Scrollbar(list_frame)
+    unbind_enter()
+    create_header("Choose Your CTF", "Browse the available challenges and select one to start.")
+
+    card = ttk.Frame(current_frame, style="Card.TFrame")
+    card.pack(fill=tk.BOTH, expand=True, padx=4, pady=4)
+
+    list_frame = ttk.Frame(card, style="Card.TFrame")
+    list_frame.pack(fill=tk.BOTH, expand=True, padx=24, pady=18)
+
+    scrollbar = ttk.Scrollbar(list_frame, style="Vertical.TScrollbar")
     scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-    
-    ctf_listbox = tk.Listbox(list_frame, yscrollcommand=scrollbar.set, font=("Arial", 11), height=15)
+
+    ctf_listbox = tk.Listbox(list_frame,
+                             background=LIST_BG,
+                             foreground=LIST_FG,
+                             selectbackground=SELECT_BG,
+                             selectforeground=SELECT_FG,
+                             activestyle="none",
+                             font=FONT_BODY,
+                             borderwidth=0,
+                             highlightthickness=0)
     ctf_listbox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
     scrollbar.config(command=ctf_listbox.yview)
-    
+    ctf_listbox.config(yscrollcommand=scrollbar.set)
+
     flat_list = []
     for category, ctfs in message.categories.items():
         ctf_listbox.insert(tk.END, f"--- {category.upper()} ---")
-        ctf_listbox.itemconfig(ctf_listbox.size() - 1, {'fg': 'blue'})
-        
+        ctf_listbox.itemconfig(ctf_listbox.size() - 1, foreground="#93c5fd")
         for ctf in ctfs:
             clean_name = ctf.split(" (")[0]
             ctf_listbox.insert(tk.END, f"  {ctf}")
             flat_list.append((clean_name, ctf))
-    
-    def submit_choice():
+
+    def submit_choice(event=None):
         selection = ctf_listbox.curselection()
         if not selection:
             messagebox.showwarning("Selection Required", "Please select a CTF.")
-            return
-        
+            return "break"
+
         selected_index = selection[0]
         actual_index = 0
         for i, item in enumerate(ctf_listbox.get(0, tk.END)):
@@ -125,42 +263,53 @@ def show_ctf_choice(message):
                     if actual_index < len(flat_list):
                         chosen = flat_list[actual_index][0]
                         response_queue.put(chosen)
-                    return
+                    return "break"
                 actual_index += 1
-    
-    button_frame = ttk.Frame(current_frame)
-    button_frame.pack(pady=10)
-    
-    submit_button = ttk.Button(button_frame, text="Select CTF", command=submit_choice)
-    submit_button.pack(side=tk.LEFT, padx=5)
+
+    ctf_listbox.bind("<Return>", submit_choice)
+    ctf_listbox.bind("<Double-Button-1>", submit_choice)
+    ctf_listbox.focus_set()
+
+    button_frame = ttk.Frame(card, style="Card.TFrame")
+    button_frame.pack(fill=tk.X, padx=24, pady=(0, 20))
+
+    submit_button = ttk.Button(button_frame, text="Select CTF", command=submit_choice, style="Accent.TButton")
+    submit_button.pack(side=tk.LEFT, padx=(0, 6), ipadx=10, ipady=8)
+
+    instructions_button = ttk.Button(button_frame, text="Instructions", command=show_instructions_window, style="Secondary.TButton")
+    instructions_button.pack(side=tk.LEFT, ipadx=10, ipady=8)
+
+    root.bind("<Return>", lambda e: submit_choice())
 
 
 def show_question(message):
     clear_frame()
-    
-    question_label = ttk.Label(current_frame, text=f"Question {message.question_number}", font=("Arial", 14, "bold"))
-    question_label.pack(pady=10)
-    
-    question_text = ttk.Label(current_frame, text=message.question, font=("Arial", 12), wraplength=500, justify=tk.LEFT)
-    question_text.pack(pady=15, padx=20)
-    
-    hint_frame = ttk.LabelFrame(current_frame, text="Hint", padding=10)
+    create_header(f"Question {message.question_number}", "Submit the correct answer or request a hint.")
+
+    card = ttk.Frame(current_frame, style="Card.TFrame")
+    card.pack(fill=tk.BOTH, expand=True, padx=4, pady=4)
+
+    question_text = ttk.Label(card, text=message.question, style="CardText.TLabel", wraplength=660, justify=tk.LEFT)
+    question_text.pack(fill=tk.X, padx=24, pady=(18, 14))
+
     if message.hint:
-        hint_label = ttk.Label(hint_frame, text=message.hint, font=("Arial", 10), wraplength=480, justify=tk.LEFT, foreground="green")
+        hint_frame = ttk.Labelframe(card, text="Hint", style="Card.TLabelframe", padding=14)
+        hint_frame.pack(fill=tk.X, padx=24, pady=(0, 18))
+        hint_label = ttk.Label(hint_frame, text=message.hint, style="CardText.TLabel", wraplength=620, justify=tk.LEFT, foreground="#86efac")
         hint_label.pack()
-        hint_frame.pack(fill=tk.X, padx=10, pady=10)
-    
-    answer_frame = ttk.LabelFrame(current_frame, text="Your Answer", padding=10)
-    answer_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
-    
+
+    answer_frame = ttk.Labelframe(card, text="Your Answer", style="Card.TLabelframe", padding=14)
+    answer_frame.pack(fill=tk.X, padx=24, pady=(0, 18))
+
     answer_var = tk.StringVar()
-    answer_entry = ttk.Entry(answer_frame, textvariable=answer_var, width=60)
-    answer_entry.pack(pady=5)
+    answer_entry = ttk.Entry(answer_frame, textvariable=answer_var, width=52)
+    answer_entry.configure(font=FONT_BODY)
+    answer_entry.pack(fill=tk.X)
     answer_entry.focus()
-    
-    button_frame = ttk.Frame(current_frame)
-    button_frame.pack(pady=10)
-    
+
+    button_frame = ttk.Frame(card, style="Card.TFrame")
+    button_frame.pack(fill=tk.X, padx=24, pady=(0, 20))
+
     def submit_answer():
         answer = answer_var.get().strip()
         if not answer:
@@ -168,69 +317,78 @@ def show_question(message):
             return
         response_queue.put(answer)
         answer_entry.delete(0, tk.END)
-    
-    def request_hint():
-        response_queue.put("hint")
-    
-    submit_button = ttk.Button(button_frame, text="Submit Answer", command=submit_answer)
-    submit_button.pack(side=tk.LEFT, padx=5)
-    
+
+    submit_button = ttk.Button(button_frame, text="Submit Answer", command=submit_answer, style="Accent.TButton")
+    submit_button.pack(side=tk.LEFT, padx=(0, 8), ipadx=10, ipady=8)
+
     if not message.hint:
-        hint_button = ttk.Button(button_frame, text="Get Hint", command=request_hint)
-        hint_button.pack(side=tk.LEFT, padx=5)
-    
+        hint_button = ttk.Button(button_frame, text="Request Hint", command=lambda: response_queue.put("hint"), style="Secondary.TButton")
+        hint_button.pack(side=tk.LEFT, ipadx=10, ipady=8)
+
     answer_entry.bind("<Return>", lambda e: submit_answer())
 
 
 def show_response(message):
     clear_frame()
-    
+    unbind_enter()
+    create_header("Answer Feedback", "Review your answer result before continuing.")
+
+    card = ttk.Frame(current_frame, style="Card.TFrame")
+    card.pack(fill=tk.BOTH, expand=True, padx=4, pady=4)
+
     is_correct = message.is_correct
     result_text = "✓ Correct!" if is_correct else "✗ Incorrect"
-    result_color = "green" if is_correct else "red"
-    
-    result_label = ttk.Label(current_frame, text=result_text, font=("Arial", 20, "bold"), foreground=result_color)
-    result_label.pack(pady=20)
-    
-    question_label = ttk.Label(current_frame, text="Question:", font=("Arial", 12, "bold"))
-    question_label.pack(pady=(10, 5))
-    
-    question_text = ttk.Label(current_frame, text=message.question, font=("Arial", 11), wraplength=500, justify=tk.LEFT)
-    question_text.pack(padx=20, pady=5)
-    
-    points_label = ttk.Label(current_frame, text=f"Points for this question: {message.points_for_correct_answer}", font=("Arial", 12), foreground="blue")
-    points_label.pack(pady=20)
-    
-    def continue_game():
+    result_color = SUCCESS_COLOR if is_correct else ERROR_COLOR
+
+    result_label = ttk.Label(card, text=result_text, font=("Segoe UI", 22, "bold"), foreground=result_color, background=CARD_COLOR)
+    result_label.pack(padx=24, pady=(24, 12), anchor="w")
+
+    question_label = ttk.Label(card, text="Question", style="CardHeader.TLabel")
+    question_label.pack(padx=24, pady=(8, 4), anchor="w")
+
+    question_text = ttk.Label(card, text=message.question, style="CardText.TLabel", wraplength=660, justify=tk.LEFT)
+    question_text.pack(fill=tk.X, padx=24, pady=(0, 18))
+
+    points_label = ttk.Label(card, text=f"Points for this question: {message.points_for_correct_answer}", style="CardText.TLabel")
+    points_label.pack(padx=24, pady=(0, 24), anchor="w")
+
+    def continue_action(event=None):
         response_queue.put(None)
-    
-    continue_button = ttk.Button(current_frame, text="Continue", command=continue_game)
-    continue_button.pack(pady=10)
+
+    continue_button = ttk.Button(card, text="Continue", command=continue_action, style="Accent.TButton")
+    continue_button.pack(padx=24, pady=(0, 24), ipadx=10, ipady=8, anchor="w")
+
+    root.bind("<Return>", continue_action)
 
 
 def show_final_score(message):
     clear_frame()
-    
-    title_label = ttk.Label(current_frame, text="Game Finished!", font=("Arial", 20, "bold"))
-    title_label.pack(pady=30)
-    
-    score_label = ttk.Label(current_frame, text=f"Your Final Score: {message.score}", font=("Arial", 28, "bold"), foreground="green")
-    score_label.pack(pady=20)
-    
-    def exit_game():
+    unbind_enter()
+    create_header("Game Completed", "Well done! Review your final score below.")
+
+    card = ttk.Frame(current_frame, style="Card.TFrame")
+    card.pack(fill=tk.BOTH, expand=True, padx=4, pady=4)
+
+    score_label = ttk.Label(card, text=f"{message.score}", font=("Segoe UI", 52, "bold"), foreground=ACCENT_COLOR, background=CARD_COLOR)
+    score_label.pack(padx=24, pady=(24, 10))
+
+    detail_label = ttk.Label(card, text="Your final score has been recorded.", style="CardText.TLabel")
+    detail_label.pack(padx=24, pady=(0, 20), anchor="w")
+
+    def exit_action(event=None):
         response_queue.put(None)
         root.quit()
-    
-    exit_button = ttk.Button(current_frame, text="Exit Game", command=exit_game)
-    exit_button.pack(pady=20)
+
+    exit_button = ttk.Button(card, text="Exit Game", command=exit_action, style="Accent.TButton")
+    exit_button.pack(padx=24, pady=(0, 24), ipadx=10, ipady=8, anchor="w")
+
+    root.bind("<Return>", exit_action)
 
 
 def show_error(message):
     error_text = message.error
-    
     if hasattr(message, 'user_name') and message.user_name:
         error_text = f"Username '{message.user_name}' is already taken. Please try another."
-    
     messagebox.showerror("Error", error_text)
     show_username_input()
 
