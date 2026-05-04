@@ -183,9 +183,10 @@ def show_instructions_window():
 
 
 def show_username_input():
+    # TODO: check if username is ""
     clear_frame()
     unbind_enter()
-    create_header("Welcome to CTF Game", "Enter your username to join the challenge.")
+    create_header("Welcome to A's CTF Game!", "Enter your username to join the challenge.")
 
     card = ttk.Frame(current_frame, style="Card.TFrame")
     card.pack(fill=tk.BOTH, expand=True, padx=4, pady=4)

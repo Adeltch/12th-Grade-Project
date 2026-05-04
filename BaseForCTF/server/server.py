@@ -229,11 +229,9 @@ def handle_question_loop(player, lobby):
 
             # Too many attempts means skip question
             if player.attempts >= MAX_ATTEMPTS_PER_QUESTION:
-                if not player.send(Response(
-                        False,
-                        f"Too many attempts ({MAX_ATTEMPTS_PER_QUESTION}) for this question. Moving to next challenge.",
-                        0
-                )):
+                if not player.send(Response(False,
+                                            f"Too many attempts ({MAX_ATTEMPTS_PER_QUESTION}) for this question."
+                                            f" Moving to next challenge.", 0)):
                     finish_player(lobby, player)
                     return
 
