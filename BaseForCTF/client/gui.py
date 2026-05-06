@@ -9,7 +9,7 @@ response_queue = Queue()
 root = None
 current_frame = None
 
-# Modern theme palette
+# Pallet of colors
 BG_COLOR = "#121826"
 CARD_COLOR = "#1f2937"
 TEXT_COLOR = "#eef2ff"
@@ -25,6 +25,7 @@ LIST_FG = "#eef2ff"
 SELECT_BG = "#2563eb"
 SELECT_FG = "#f8fafc"
 
+# Fonts
 FONT_TITLE = ("Segoe UI", 18, "bold")
 FONT_SUBTITLE = ("Segoe UI", 11)
 FONT_CARD_TITLE = ("Segoe UI", 14, "bold")
@@ -33,6 +34,10 @@ FONT_BUTTON = ("Segoe UI", 11, "bold")
 
 
 def initialize_gui():
+    """
+    Initialize the main Tkinter window, configure styles, and start queue polling
+    :return: The root GUI window
+    """
     global root
     root = tk.Tk()
     root.title("CTF Game Client")
@@ -40,11 +45,15 @@ def initialize_gui():
     root.minsize(720, 560)
     root.configure(bg=BG_COLOR)
     configure_style()
+
     check_queue()
     return root
 
 
 def configure_style():
+    """
+    Configure ttk styles (colors, fonts, widgets) for the application
+    """
     style = ttk.Style(root)
     style.theme_use("clam")
 
@@ -55,38 +64,27 @@ def configure_style():
     style.configure("CardHeader.TLabel", background=CARD_COLOR, foreground=TEXT_COLOR, font=FONT_CARD_TITLE)
     style.configure("CardText.TLabel", background=CARD_COLOR, foreground=TEXT_COLOR, font=FONT_BODY, wraplength=640)
 
-    style.configure("Accent.TButton",
-                    background=ACCENT_COLOR,
-                    foreground=TEXT_COLOR,
-                    font=FONT_BUTTON,
-                    borderwidth=0,
-                    focusthickness=3,
-                    focuscolor=ACCENT_HOVER)
+    style.configure("Accent.TButton", background=ACCENT_COLOR, foreground=TEXT_COLOR, font=FONT_BUTTON,
+                    borderwidth=0, focusthickness=3, focuscolor=ACCENT_HOVER)
     style.map("Accent.TButton",
               background=[("active", ACCENT_HOVER), ("disabled", "#475569")])
 
-    style.configure("Secondary.TButton",
-                    background="#334155",
-                    foreground=TEXT_COLOR,
-                    font=FONT_BUTTON,
+    style.configure("Secondary.TButton", background="#334155", foreground=TEXT_COLOR, font=FONT_BUTTON,
                     borderwidth=0)
     style.map("Secondary.TButton",
               background=[("active", "#475569")])
 
     style.configure("Card.TLabelframe", background=CARD_COLOR, borderwidth=0)
     style.configure("Card.TLabelframe.Label", background=CARD_COLOR, foreground=SUBTEXT_COLOR, font=FONT_BODY)
-    style.configure("TEntry",
-                    fieldbackground=INPUT_BG,
-                    foreground=TEXT_COLOR,
-                    background=INPUT_BG,
-                    bordercolor=INPUT_BORDER,
-                    lightcolor=ACCENT_COLOR,
-                    darkcolor=INPUT_BORDER)
+    style.configure("TEntry", fieldbackground=INPUT_BG, foreground=TEXT_COLOR, background=INPUT_BG,
+                    bordercolor=INPUT_BORDER, lightcolor=ACCENT_COLOR, darkcolor=INPUT_BORDER)
     style.configure("TLabel", background=BG_COLOR, foreground=TEXT_COLOR, font=FONT_BODY)
 
 
-
 def check_queue():
+    """
+    Continuously gets data from the request queue and trigger the appropriate UI updates
+    """
     try:
         while True:
             request_type, data = request_queue.get_nowait()
@@ -113,14 +111,23 @@ def check_queue():
 
 
 def clear_frame():
+    """
+    Destroy the current frame and create a new empty frame for the next screen
+    """
     global current_frame
     if current_frame:
         current_frame.destroy()
+
     current_frame = ttk.Frame(root)
     current_frame.pack(fill=tk.BOTH, expand=True, padx=18, pady=18)
 
 
 def create_header(title, subtitle):
+    """
+    Create and display a header section with title and subtitle
+    :param title: Main heading text
+    :param subtitle: Secondary descriptive text
+    """
     header_frame = ttk.Frame(current_frame, style="Card.TFrame")
     header_frame.pack(fill=tk.X, pady=(0, 18), ipadx=14, ipady=14)
 
@@ -132,6 +139,9 @@ def create_header(title, subtitle):
 
 
 def unbind_enter():
+    """
+    Remove any existing binding for the Enter key
+    """
     if root:
         root.unbind("<Return>")
 
@@ -183,6 +193,9 @@ def show_instructions_window():
 
 
 def show_username_input():
+    """
+    Display the username input screen and send entered username to response queue
+    """
     # TODO: check if username is ""
     clear_frame()
     unbind_enter()
@@ -205,6 +218,7 @@ def show_username_input():
         if not username:
             messagebox.showwarning("Input Required", "Please enter a username.")
             return
+
         response_queue.put(username)
         username_entry.delete(0, tk.END)
 
@@ -215,6 +229,10 @@ def show_username_input():
 
 
 def show_ctf_choice(message):
+    """
+    Display a list of available CTF challenges and send selected choice
+    :param message: Object containing CTF categories and names
+    """
     clear_frame()
     unbind_enter()
     create_header("Choose Your CTF", "Browse the available challenges and select one to start.")
@@ -228,14 +246,8 @@ def show_ctf_choice(message):
     scrollbar = ttk.Scrollbar(list_frame, style="Vertical.TScrollbar")
     scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
 
-    ctf_listbox = tk.Listbox(list_frame,
-                             background=LIST_BG,
-                             foreground=LIST_FG,
-                             selectbackground=SELECT_BG,
-                             selectforeground=SELECT_FG,
-                             activestyle="none",
-                             font=FONT_BODY,
-                             borderwidth=0,
+    ctf_listbox = tk.Listbox(list_frame, background=LIST_BG, foreground=LIST_FG, selectbackground=SELECT_BG,
+                             selectforeground=SELECT_FG, activestyle="none", font=FONT_BODY, borderwidth=0,
                              highlightthickness=0)
     ctf_listbox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
     scrollbar.config(command=ctf_listbox.yview)
@@ -264,6 +276,7 @@ def show_ctf_choice(message):
                     if actual_index < len(flat_list):
                         chosen = flat_list[actual_index][0]
                         response_queue.put(chosen)
+
                     return "break"
                 actual_index += 1
 
@@ -284,6 +297,10 @@ def show_ctf_choice(message):
 
 
 def show_question(message):
+    """
+    Display a question, optional hint, and input for user's answer
+    :param message: Object containing question text, hint, and metadata
+    """
     clear_frame()
     create_header(f"Question {message.question_number}", "Submit the correct answer or request a hint.")
 
@@ -330,6 +347,10 @@ def show_question(message):
 
 
 def show_response(message):
+    """
+    Display feedback for the submitted answer (correct/incorrect)
+    :param message: Object containing correctness, question, and points
+    """
     clear_frame()
     unbind_enter()
     create_header("Answer Feedback", "Review your answer result before continuing.")
@@ -363,6 +384,10 @@ def show_response(message):
 
 
 def show_final_score(message):
+    """
+    Display the final score and exit option.
+    :param message: Object containing the final score
+    """
     clear_frame()
     unbind_enter()
     create_header("Game Completed", "Well done! Review your final score below.")
@@ -387,6 +412,10 @@ def show_final_score(message):
 
 
 def show_error(message):
+    """
+    Display an error message and return to username input screen
+    :param message: Object containing error details
+    """
     error_text = message.error
     if hasattr(message, 'user_name') and message.user_name:
         error_text = f"Username '{message.user_name}' is already taken. Please try another."
@@ -395,29 +424,55 @@ def show_error(message):
 
 
 def handle_user_name_input():
+    """
+    Request username input from GUI and wait for user response
+    :return: str - Entered username
+    """
     request_queue.put(("show_username_input", None))
     return response_queue.get()
 
 
 def handle_ctf_choice(message):
+    """
+    Request CTF selection from GUI and wait for user choice
+    :param message: Object containing CTF options
+    :return: str - Selected CTF name
+    """
     request_queue.put(("show_ctf_choice", message))
     return response_queue.get()
 
 
 def get_answer(message):
+    """
+    Request answer input from GUI and wait for user response
+    :param message: Object containing the question
+    :return: str - User's answer or 'hint' request
+    """
     request_queue.put(("show_question", message))
     return response_queue.get()
 
 
 def handle_show_result(message):
+    """
+    Display answer result and wait for user to continue
+    :param message: Object containing result details
+    """
     request_queue.put(("show_response", message))
     response_queue.get()
 
 
 def handle_show_final_score(message):
+    """
+    Display final score and wait for user to exit
+    :param message: Object containing score
+    """
     request_queue.put(("show_final_score", message))
     response_queue.get()
 
 
 def handle_show_error(message):
+    """
+    Send an error message to the GUI for display
+    :param message: Object containing error details
+    """
     request_queue.put(("show_error", message))

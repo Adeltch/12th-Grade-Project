@@ -3,9 +3,6 @@ __author__ = "Adel Tchernitsky"
 
 import socket
 import pickle
-"""import sys
-sys.path.append("..\\Protocol")
-# add this once these code is in Protocol folder"""
 from shared.tcp_by_size import send_with_size, recv_by_size
 from shared.Cipher import AESCipher
 
@@ -16,7 +13,7 @@ SOCKET_TIMEOUT_EXCEPTION = socket.timeout
 cipher = AESCipher()
 
 
-def create():  # Create and return a new socket
+def create():  # Create a new socket
     return socket.socket()
 
 

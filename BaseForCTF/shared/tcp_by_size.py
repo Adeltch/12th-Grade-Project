@@ -1,3 +1,6 @@
+__author__ = "Adel Tchernitsky"
+
+
 SIZE_HEADER_FORMAT = "00000000|"  # 8 digits for data size + one delimiter
 HEADER_SIZE = len(SIZE_HEADER_FORMAT)
 
