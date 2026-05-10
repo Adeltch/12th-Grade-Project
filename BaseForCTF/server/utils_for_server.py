@@ -218,8 +218,9 @@ def get_all_ctfs():
     """
     # TODO: return a ctf_map here like the one that's currently an object in the LOBBY
     ctfs = []
-    for item in os.listdir(QUIZ_FOLDER_DIRECTORY):
+    for item in sorted(os.listdir(QUIZ_FOLDER_DIRECTORY)):  # Files are sorted alphabetically, so CTF1 will be before CTF2, etc.
         print("Found:", item)
+
         full_path = os.path.join(QUIZ_FOLDER_DIRECTORY, item)
         print("full path:", full_path)
 

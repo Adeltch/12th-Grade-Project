@@ -5,10 +5,25 @@ from dataclasses import dataclass, field
 from typing import Optional
 
 
+
 @dataclass
-class GetUserName:
-    """Server asks client to send his username"""
+class Welcome:
+    """Server welcomes client and requests authentication choice"""
     null: int = 0
+
+
+@dataclass
+class SignUpRequest:
+    """Client requests to create a new account"""
+    user_name: str
+    password: str
+
+
+@dataclass
+class LogInRequest:
+    """Client requests to authenticate with existing account"""
+    user_name: str
+    password: str
 
 
 @dataclass
@@ -85,3 +100,9 @@ class NameAlreadyTakenError(GeneralError):
     """Error message, name already taken"""
     user_name: str = ""
     error: str = "Name already taken"
+
+
+@dataclass
+class AuthError(GeneralError):
+    """Error message for authentication failures (invalid user name \ password)"""
+    error: str = "Authentication failed"

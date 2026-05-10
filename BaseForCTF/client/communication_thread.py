@@ -18,8 +18,8 @@ def change_player_status(new_status):
     status = new_status
 
 
-def handle_user_name_input():
-    return gui.handle_user_name_input()
+def handle_authentication_choice():
+    return gui.handle_authentication_choice()
 
 
 def handle_ctf_choice(message):
@@ -49,14 +49,14 @@ def show_message_content(message):
     OUTPUT_HANDLING[type(message)](message)
 
 
-MESSAGE_STATUS_DICT = {GetUserName: PlayerStatus.GetUserName, CTFList: PlayerStatus.ChooseCTF,
+MESSAGE_STATUS_DICT = {Welcome: PlayerStatus.Authenticate, CTFList: PlayerStatus.ChooseCTF,
                       QuestionMsg: PlayerStatus.InGame, Response: PlayerStatus.ShowResponse,
                       FinalScore: PlayerStatus.ShowFinalScore, GeneralError: PlayerStatus.ShowError}
 
 
 def handle_message(message):
-    if isinstance(message, NameAlreadyTakenError):
-        change_player_status(PlayerStatus.GetUserName)
+    if isinstance(message, (NameAlreadyTakenError, AuthError)):
+        change_player_status(PlayerStatus.Authenticate)
     else:
         for msg_type, status in MESSAGE_STATUS_DICT.items():
             if isinstance(message, msg_type):
@@ -69,8 +69,8 @@ def handle_message(message):
 def create_response(message):
     if status == PlayerStatus.Finish:
         return Exit()
-    if status == PlayerStatus.GetUserName:
-        return Login(handle_user_name_input())
+    if status == PlayerStatus.Authenticate:
+        return handle_authentication_choice()
     if status == PlayerStatus.ChooseCTF:
         chosen = handle_ctf_choice(message)
         return CTFChoice(chosen)

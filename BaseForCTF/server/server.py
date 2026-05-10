@@ -73,44 +73,57 @@ def display_scoreboard(lobby):
     print("=" * 65 + "\n")
 
 
-def handle_get_username(player, lobby):
+def handle_authentication(player, lobby):
     """
-    Handle receiving user_name from client
+    Handle user authentication: sign up or log in
+    Processes SignUpRequest or LogInRequest messages and validates credentials
+    :param player: Player object
+    :param lobby: Lobby object
     """
     while True:
-        # Ask for username
-        if not player.send(GetUserName()):
+        # Send welcome message
+        if not player.send(Welcome()):
             finish_player(lobby, player)
             return
 
-        succeeded, player_name_msg = player.recv()
-        if not succeeded or isinstance(player_name_msg, Exit):
+        succeeded, auth_msg = player.recv()
+        if not succeeded or isinstance(auth_msg, Exit):
             finish_player(lobby, player)
             return
 
-        if not isinstance(player_name_msg, Login):
+        if isinstance(auth_msg, SignUpRequest):
+            # Check if username already exists
+            if get_player(auth_msg.user_name):
+                if not player.send(NameAlreadyTakenError(auth_msg.user_name)):
+                    finish_player(lobby, player)
+                    return
+                continue  # Ask again
+
+            # Create new player
+            create_player(auth_msg.user_name, auth_msg.password)
+            player.name = auth_msg.user_name
+            player.status = PlayerStatus.ChooseCTF
+            player.session_start_time = datetime.now()
+            break
+
+        elif isinstance(auth_msg, LogInRequest):
+            # Check credentials
+            if not authenticate_player(auth_msg.user_name, auth_msg.password):
+                if not player.send(AuthError("Invalid username or password")):
+                    finish_player(lobby, player)
+                    return
+                continue  # Ask again
+
+            # Successful login
+            player.name = auth_msg.user_name
+            player.status = PlayerStatus.ChooseCTF
+            player.session_start_time = datetime.now()
+            break
+
+        else:
             player.send(ProtocolError())
             finish_player(lobby, player)
             return
-
-        # Username already taken
-        if lobby.check_user_name(player_name_msg.user_name):
-            if not player.send(NameAlreadyTakenError(player_name_msg.user_name)):
-                finish_player(lobby, player)
-                return
-            continue  # Ask for username again
-
-        # Username accepted
-        player.name = player_name_msg.user_name
-        # Ensure player exists in DB
-        create_player(player.name)
-
-        # Fetch player from db (optional for now)
-        # saved_player = get_player(player.name)
-
-        player.status = PlayerStatus.ChooseCTF
-        player.session_start_time = datetime.now()
-        break
 
 
 def handle_choose_ctf(player, lobby):
@@ -204,7 +217,7 @@ def handle_question_loop(player, lobby):
     # Handle answer
     if isinstance(player_answer, Answer):
         # Correct answer
-        if player_answer.answer.strip().lower() == current_question.flag.strip().lower():
+        if player_answer.answer.strip().lower() == current_question.flag.strip().lower():  # TODO: sometimes falls on this line
             # TODO: think about keeping hashed flags instead of plain text
             player_succeeded = True
 
@@ -259,7 +272,7 @@ def handle_show_final_score(player, lobby):
     finish_player(lobby, player)
 
 
-STATE_HANDLERS = {PlayerStatus.GetUserName: handle_get_username, PlayerStatus.ChooseCTF: handle_choose_ctf,
+STATE_HANDLERS = {PlayerStatus.Authenticate: handle_authentication, PlayerStatus.ChooseCTF: handle_choose_ctf,
                   PlayerStatus.InGame: handle_question_loop, PlayerStatus.ShowFinalScore: handle_show_final_score}
 
 
@@ -303,7 +316,7 @@ def main():
             except SOCKET_TIMEOUT_EXCEPTION:
                 continue
 
-            player = Player(client_sock, PlayerStatus.GetUserName)  # Create player object for connected client
+            player = Player(client_sock, PlayerStatus.Authenticate)  # Create player object for connected client
             lobby.add_player(player)  # Adds new player to lobby
 
             t = threading.Thread(target=handle_client, args=(player, lobby))  # Create new thread for client

@@ -88,9 +88,8 @@ def check_queue():
     try:
         while True:
             request_type, data = request_queue.get_nowait()
-
-            if request_type == "show_username_input":
-                show_username_input()
+            if request_type == "show_welcome_screen":
+                show_welcome_screen()
             elif request_type == "show_ctf_choice":
                 show_ctf_choice(data)
             elif request_type == "show_question":
@@ -192,14 +191,40 @@ def show_instructions_window():
     instructions_window.wait_window()
 
 
-def show_username_input():
+def show_welcome_screen():
     """
-    Display the username input screen and send entered username to response queue
+    Display the welcome screen with Sign Up and Log In options
     """
-    # TODO: check if username is ""
     clear_frame()
     unbind_enter()
-    create_header("Welcome to A's CTF Game!", "Enter your username to join the challenge.")
+    create_header("Welcome to the CTF System", "Choose an option to continue.")
+
+    card = ttk.Frame(current_frame, style="Card.TFrame")
+    card.pack(fill=tk.BOTH, expand=True, padx=4, pady=4)
+
+    button_frame = ttk.Frame(card, style="Card.TFrame")
+    button_frame.pack(fill=tk.BOTH, expand=True, padx=24, pady=18)
+
+    def sign_up():
+        show_sign_up()
+
+    def log_in():
+        show_log_in()
+
+    sign_up_button = ttk.Button(button_frame, text="Sign Up", command=sign_up, style="Accent.TButton")
+    sign_up_button.pack(pady=(20, 10), ipadx=20, ipady=10)
+
+    log_in_button = ttk.Button(button_frame, text="Log In", command=log_in, style="Secondary.TButton")
+    log_in_button.pack(pady=(10, 20), ipadx=20, ipady=10)
+
+
+def show_sign_up():
+    """
+    Display the sign up screen for creating new accounts
+    """
+    clear_frame()
+    unbind_enter()
+    create_header("Sign Up", "Create a new account to join the CTF system.")
 
     card = ttk.Frame(current_frame, style="Card.TFrame")
     card.pack(fill=tk.BOTH, expand=True, padx=4, pady=4)
@@ -208,24 +233,81 @@ def show_username_input():
     input_frame.pack(fill=tk.X, padx=24, pady=18)
 
     username_var = tk.StringVar()
+    password_var = tk.StringVar()
+
+    ttk.Label(input_frame, text="Username:", style="CardText.TLabel").pack(anchor="w", pady=(10, 0))
     username_entry = ttk.Entry(input_frame, textvariable=username_var, width=34)
     username_entry.configure(font=FONT_BODY)
-    username_entry.pack(fill=tk.X, pady=(10, 0))
+    username_entry.pack(fill=tk.X, pady=(5, 10))
     username_entry.focus()
 
-    def submit_username():
+    ttk.Label(input_frame, text="Password:", style="CardText.TLabel").pack(anchor="w")
+    password_entry = ttk.Entry(input_frame, textvariable=password_var, show="*", width=34)
+    password_entry.configure(font=FONT_BODY)
+    password_entry.pack(fill=tk.X, pady=(5, 10))
+
+    def submit_sign_up():
         username = username_var.get().strip()
-        if not username:
-            messagebox.showwarning("Input Required", "Please enter a username.")
+        password = password_var.get().strip()
+        if not username or not password:
+            messagebox.showwarning("Input Required", "Please enter both username and password.")
             return
 
-        response_queue.put(username)
+        from shared.Protocol import SignUpRequest
+        response_queue.put(SignUpRequest(username, password))
         username_entry.delete(0, tk.END)
+        password_entry.delete(0, tk.END)
 
-    submit_button = ttk.Button(card, text="Enter Game", command=submit_username, style="Accent.TButton")
+    submit_button = ttk.Button(card, text="Sign Up", command=submit_sign_up, style="Accent.TButton")
     submit_button.pack(pady=(0, 20), ipadx=10, ipady=8)
 
-    username_entry.bind("<Return>", lambda e: submit_username())
+    password_entry.bind("<Return>", lambda e: submit_sign_up())
+
+
+def show_log_in():
+    """
+    Display the log in screen for existing users
+    """
+    clear_frame()
+    unbind_enter()
+    create_header("Log In", "Enter your credentials to access the CTF system.")
+
+    card = ttk.Frame(current_frame, style="Card.TFrame")
+    card.pack(fill=tk.BOTH, expand=True, padx=4, pady=4)
+
+    input_frame = ttk.Frame(card, style="Card.TFrame")
+    input_frame.pack(fill=tk.X, padx=24, pady=18)
+
+    username_var = tk.StringVar()
+    password_var = tk.StringVar()
+
+    ttk.Label(input_frame, text="Username:", style="CardText.TLabel").pack(anchor="w", pady=(10, 0))
+    username_entry = ttk.Entry(input_frame, textvariable=username_var, width=34)
+    username_entry.configure(font=FONT_BODY)
+    username_entry.pack(fill=tk.X, pady=(5, 10))
+    username_entry.focus()
+
+    ttk.Label(input_frame, text="Password:", style="CardText.TLabel").pack(anchor="w")
+    password_entry = ttk.Entry(input_frame, textvariable=password_var, show="*", width=34)
+    password_entry.configure(font=FONT_BODY)
+    password_entry.pack(fill=tk.X, pady=(5, 10))
+
+    def submit_log_in():
+        username = username_var.get().strip()
+        password = password_var.get().strip()
+        if not username or not password:
+            messagebox.showwarning("Input Required", "Please enter both username and password.")
+            return
+
+        from shared.Protocol import LogInRequest
+        response_queue.put(LogInRequest(username, password))
+        username_entry.delete(0, tk.END)
+        password_entry.delete(0, tk.END)
+
+    submit_button = ttk.Button(card, text="Log In", command=submit_log_in, style="Accent.TButton")
+    submit_button.pack(pady=(0, 20), ipadx=10, ipady=8)
+
+    password_entry.bind("<Return>", lambda e: submit_log_in())
 
 
 def show_ctf_choice(message):
@@ -420,15 +502,15 @@ def show_error(message):
     if hasattr(message, 'user_name') and message.user_name:
         error_text = f"Username '{message.user_name}' is already taken. Please try another."
     messagebox.showerror("Error", error_text)
-    show_username_input()
+    show_welcome_screen()
 
 
-def handle_user_name_input():
+def handle_authentication_choice():
     """
-    Request username input from GUI and wait for user response
-    :return: str - Entered username
+    Request authentication choice from GUI and wait for user response
+    :return: SignUpRequest or LogInRequest
     """
-    request_queue.put(("show_username_input", None))
+    request_queue.put(("show_welcome_screen", None))
     return response_queue.get()
 
 

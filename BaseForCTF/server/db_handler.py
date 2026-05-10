@@ -3,9 +3,13 @@ __author__ = "Adel Tchernitsky"
 
 import sqlite3
 from datetime import datetime
+import os
+import hashlib
+import secrets
 
 
 DB_FILE = "server//ctf.db"
+PEPPER = "my_super_secret_pepper_is_Taylor_Swift_<3" 
 
 
 # Connection to DB
@@ -23,8 +27,10 @@ def init_db():
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS players (
         name TEXT PRIMARY KEY,
+        password_hash TEXT,
+        salt TEXT,
         last_played_ctf TEXT)
-        """) # TODO: idk if I want to store last_played_ctf...
+        """)
 
     # Create table client progress per CTF
     cursor.execute("""
@@ -45,19 +51,29 @@ def init_db():
     conn.close()
 
 
-def create_player(name):
-    conn, cursor = get_connection()
+def create_player(name, password):
+    """
+    Create a new player in the database
+    """
+    salt, password_hash = hash_password(password)
 
+    conn, cursor = get_connection()
     cursor.execute("""
-    INSERT OR IGNORE INTO players (name)
-    VALUES (?)
-    """, (name,))
+    INSERT OR IGNORE INTO players (name, password_hash, salt)
+    VALUES (?, ?, ?)
+    """, (name, password_hash, salt)
+    )
 
     conn.commit()
     conn.close()
 
 
 def get_player(name):
+    """
+    Retrieve player information from database
+    :param name: Player username
+    :return: Dict with player data or None if not found
+    """
     conn, cursor = get_connection()
 
     cursor.execute("SELECT * FROM players WHERE name = ?", (name,))
@@ -68,7 +84,21 @@ def get_player(name):
     if not row:
         return None
 
-    return {"name": row[0], "last_played_ctf": row[1]}
+    return {"name": row[0], "password_hash": row[1], "salt": row[2], "last_played_ctf": row[3]}
+
+
+def authenticate_player(name, password):
+    """
+    Authenticate a player by checking username and password hash
+    :param name: Player username
+    :param password: Plain text password
+    :return: True if authentication successful, False otherwise
+    """
+    player = get_player(name)
+    if not player:
+        return False
+
+    return verify_password(password, player["salt"], player["password_hash"])
 
 
 def update_last_ctf(player_name, ctf_name):
@@ -171,3 +201,26 @@ def update_player_time(player):
         elapsed = (datetime.now() - player.session_start_time).total_seconds()
         player.total_time += int(elapsed)
         player.session_start_time = datetime.now()
+
+
+def hash_password(password, salt=None):
+    """
+    Hash password using:
+    - PBKDF2
+    - SHA256
+    - Salt
+    - Pepper
+    """
+    if salt is None:
+        salt = secrets.token_bytes(16)
+
+    peppered_password = (password + PEPPER).encode()
+
+    password_hash = hashlib.pbkdf2_hmac("sha256", peppered_password, salt, 100_000)
+    return salt.hex(), password_hash.hex()
+
+
+def verify_password(password, stored_salt, stored_hash):
+    salt = bytes.fromhex(stored_salt)
+    _, new_hash = hash_password(password, salt)
+    return new_hash == stored_hash
