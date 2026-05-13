@@ -164,10 +164,7 @@ class CTF:
 class Lobby:
     def __init__(self):
         self.players = []
-        self.all_ctfs = get_all_ctfs()
-
-        # TODO: leave only one attribute which is ctfs and it's similar to the ctf_map created in get_all_ctfs()
-        self.ctf_map = {ctf.name: ctf for ctf in self.all_ctfs}
+        self.ctf_map = get_all_ctfs()
         self.categories = self._build_categories()
 
         self.lock = threading.Lock()
@@ -201,7 +198,7 @@ class Lobby:
     def _build_categories(self):
         categories = {}
 
-        for ctf in self.all_ctfs:
+        for ctf in self.ctf_map.values():
             cat = ctf.category
             if cat not in categories:
                 categories[cat] = []
@@ -216,7 +213,6 @@ def get_all_ctfs():
     Scans the Riddles folder for all '.json' CTF files,
     creates a CTF object for each, and returns a map of CTFs.
     """
-    # TODO: return a ctf_map here like the one that's currently an object in the LOBBY
     ctfs = []
     for item in sorted(os.listdir(QUIZ_FOLDER_DIRECTORY)):  # Files are sorted alphabetically, so CTF1 will be before CTF2, etc.
         print("Found:", item)
@@ -233,4 +229,4 @@ def get_all_ctfs():
             except Exception as e:
                 print(f"Failed to load CTF from {item}: {e}")
 
-    return ctfs
+    return {ctf.name: ctf for ctf in ctfs} # Return a map of CTFs by name for easy access

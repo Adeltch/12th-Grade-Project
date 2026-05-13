@@ -1,13 +1,16 @@
 __author__ = "Adel Tchernitsky"
 
+
 import tkinter as tk
 from tkinter import ttk, messagebox
 from queue import Queue, Empty
+
 
 request_queue = Queue()
 response_queue = Queue()
 root = None
 current_frame = None
+
 
 # Pallet of colors
 BG_COLOR = "#121826"

@@ -298,7 +298,7 @@ def main():
     lobby = Lobby()  # Create the initial lobby
     # TODO: update get_questions
     init_db()
-    if len(lobby.all_ctfs) == 0:  # If no questions can't play
+    if len(lobby.ctf_map) == 0:  # If no questions can't play
         print("No questions found, can't start CTF without them!")
         return
 

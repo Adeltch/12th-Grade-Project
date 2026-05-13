@@ -27,12 +27,6 @@ class LogInRequest:
 
 
 @dataclass
-class Login:
-    """Client sends server the username"""
-    user_name: str
-
-
-@dataclass
 class CTFList:
     categories: dict[str, list[str]]
 
